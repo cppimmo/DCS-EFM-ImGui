@@ -70,6 +70,11 @@ In Visual Studio select your project in the Solution Explorer and then add the
 following entry to *Configuration Properties -> C/C++ -> General -> Additional
 Include Directories*: $(ProjectDir)..\lib\imgui-1.87\
 
+Since ImGui is distributed in source form you must add the .cpp files to your
+project as seen earlier. You can also press Shift + Alt + A and select
+imgui.cpp, imgui_demo.cpp, imgui_draw.cpp, imgui_impl_dx11.cpp,
+imgui_impl_win32.cpp, imgui_tables.cpp, and imgui_widgets.cpp.
+
 As for the MinHook v1.3.3 release, assume the same project directory
 structure.
 

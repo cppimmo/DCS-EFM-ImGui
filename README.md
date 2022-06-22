@@ -64,37 +64,47 @@ below.
     - FmGui.hpp
     - FmGui.cpp
     - .vcxproj in this directory.
+  - .sln in this directory.
 
 In Visual Studio select your project in the Solution Explorer and then add the
 following entry to *Configuration Properties -> C/C++ -> General -> Additional
 Include Directories*: $(ProjectDir)..\lib\imgui-1.87\
 
-As for the MinHook v1.3.3 binary release, assume the same project directory
+As for the MinHook v1.3.3 release, assume the same project directory
 structure.
 
 - EFM
   - lib
-    - MinHook_133_bin
-      - bin
-        - MinHook.x64.lib
+    - MinHook_133 (directory has been renamed)
+      - lib
+        - libMinHook-v\<Platform Toolset\>-\<Run-time Type\>.x64.lib
       - include
   - MY_EFM_PROJECT
     - FmGui.hpp
     - FmGui.cpp
     - .vcxproj in this directory.
+  - .sln in this directory.
 
-To add the include directory and link statically for MinHook you can use the
-following instructions:
+I personally recommended downloading the the
+[static library release](https://github.com/TsudaKageyu/minhook/releases/download/v1.3.3/MinHook_133_lib.zip)
+for MinHook or building it from source. That way you don't have to worry about
+having multiple dynamic link libraries in your aircraft mod's bin folder.
+
+To add the include directory and link statically for the MinHook static library
+release you can use the following instructions:
 
 In Visual Studio select your project in the Solution Explorer and then add the
 following entry to *Configuration Properties -> C/C++ -> General -> Additional
-Include Directories*: $(ProjectDir)..\lib\MinHook_133_bin\include\
+Include Directories*: $(ProjectDir)..\lib\MinHook_133\include\
 
 Select *Configuration Properties -> Linker -> General -> Additional Libraries
-Directories* and add $(ProjectDir)/../lib/MinHook_133_bin/bin/
+Directories* and add $(ProjectDir)/../lib/MinHook_133/lib/
 
-Select *Configuration Properties -> Linker -> Input -> Additional Dependencies*
-and add MinHook.x64.lib
+In the MinHook_133/lib/ directory, you will see several different static
+libraries. You will most likely want to link against libMinHook-x64-v141-mt.lib
+for your release builds and  libMinHook-x64-v141-mtd.lib for your debug builds.
+Add these for you different configurations in *Configuration Properties ->
+Linker -> Input -> Additional Dependencies*.
 
 Phew, I think that's everything.
 
@@ -118,6 +128,8 @@ aide the user in developing an EFM with the powerful ImGui widgets library.
 These source files were built and tested using Visual Studio Community 2022,
 Windows 10 SDK Version 10.0.19041.0, the C++20 Standard, the MinHook library
 v1.3.3, the DirectX SDK Version _____, and the ImGui library version 1.87.
+
+The minimum C++ ISO Standard requirement for these files is C++11.
 
 ## 5. License: <a name="license"></a>
 

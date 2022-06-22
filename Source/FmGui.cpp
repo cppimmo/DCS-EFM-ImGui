@@ -29,7 +29,7 @@
 #include "FmGui.hpp"
 // #include "cppimmo/FmGui.hpp"
 #if defined FMGUI_CPPIMMO
-#include "cppimmo/Logger.h"
+#include "cppimmo/Logger.hpp"
 #endif
 #include <MinHook.h>
 
@@ -91,9 +91,13 @@ static bool isInitialized = false, areWidgetsEnabled = false;
 static ImGuiRoutinePtr pWidgetRoutine = nullptr;
 static ImGuiInputRoutinePtr pInputRoutine = nullptr;
 // ImGui Configuration
-static constexpr ImGuiConfigFlags imGuiConfigFlags =
-	ImGuiConfigFlags_NavNoCaptureKeyboard;
-static constexpr const char *imGuiConfigFileName = "imgui.ini";
+// static constexpr ImGuiConfigFlags imGuiConfigFlags =
+// 	ImGuiConfigFlags_NavNoCaptureKeyboard;
+// static constexpr const char *imGuiConfigFileName = "imgui.ini";
+static ImGuiContext *pImGuiContext = nullptr;
+static bool isImGuiImplWin32Initialized = false;
+static bool isImGuiImplDX11Initialized = false;
+static FmGuiConfig fmGuiConfig;
 } // namespace FmGui
 
 void
@@ -190,7 +194,7 @@ FmGui::DebugLayerMessageDump(void)
 #endif
 		}
 		// Allocate memory.
-		D3D11_MESSAGE *message = (D3D11_MESSAGE *)malloc(messageSize);
+		D3D11_MESSAGE *message = (D3D11_MESSAGE *)std::malloc(messageSize);
 		if (!message) {
 #if defined FMGUI_CPPIMMO
 			LOG_WRITELN_T("message memory alloc failed!", Utils::Logger::Type::ERROR);
@@ -404,8 +408,9 @@ FmGui::SetWidgetVisibility(bool isEnabled)
 }
 
 bool
-FmGui::StartupHook(void)
+FmGui::StartupHook(const FmGuiConfig &config)
 {
+	fmGuiConfig = config;
 #if defined FMGUI_CPPIMMO
 	LOG_WRITELN_T("Redirecting Direct3D routines...",
 				  Utils::Logger::Type::MESSAGE);
@@ -509,20 +514,66 @@ FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, UINT syncInterval,
 #endif
 			return pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
 		}
-		ImGui::CreateContext();
+		pImGuiContext = ImGui::CreateContext();
+		if (!pImGuiContext) {
+#if defined FMGUI_CPPIMMO
+			LOG_WRITELN_T("ImGui::CreateContext failed!",
+						  Utils::Logger::Type::ERROR);
+#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
+			std::fprintf(stderr, "ImGui::CreateContext failed!\n");
+#endif
+			return pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
+		}
+		ImGui::SetCurrentContext(pImGuiContext);
 		ImGuiIO &imGuiIO = ImGui::GetIO();
+		// Configuration of the current ImGui context.
+		imGuiIO.ConfigFlags |= fmGuiConfig.imGuiConfigFlags;
+		if (fmGuiConfig.imGuiIniFileName.empty())
+			imGuiIO.IniFilename = nullptr;
+		else
+			imGuiIO.IniFilename = fmGuiConfig.imGuiIniFileName.c_str();
+		imGuiIO.IniSavingRate = fmGuiConfig.imGuiIniSavingRate;
+		switch (fmGuiConfig.imGuiStyle) {
+		case FmGuiStyle::CLASSIC:
+			ImGui::StyleColorsClassic();
+			break;
+		case FmGuiStyle::DARK:
+			ImGui::StyleColorsDark();
+			break;
+		case FmGuiStyle::LIGHT:
+			ImGui::StyleColorsLight();
+			break;
+		}
 
+		// Get the IDXGISwapChain's description.
 		DXGI_SWAP_CHAIN_DESC swapChainDesc;
 		ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
-		pSwapChain->GetDesc(&swapChainDesc);
-		imGuiIO.ConfigFlags |= imGuiConfigFlags;
-		imGuiIO.IniFilename = imGuiConfigFileName;
-
+		if (FAILED(pSwapChain->GetDesc(&swapChainDesc))) {
+#if defined FMGUI_CPPIMMO
+			LOG_WRITELN_T("IDXGISwapChain::GetDesc failed!",
+						  Utils::Logger::Type::ERROR);
+#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
+			std::fprintf(stderr, "IDXGISwapChain::GetDesc failed!\n");
+#endif
+			return pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
+		}
+		// Set global window handle to the OutputWindow of the IDXGISwapChain.
 		hWnd = swapChainDesc.OutputWindow;
-		pWndProcApp = reinterpret_cast<WNDPROC>(SetWindowLongPtr(hWnd,
+		pWndProcApp = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(hWnd,
 			GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WndProc)));
+		if (pWndProcApp == NULL) {
+#if defined FMGUI_CPPIMMO
+			LOG_WRITELN_T("SetWindowLongPtrW failed!",
+						  Utils::Logger::Type::ERROR);
+#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
+			std::fprintf(pFileStderr, "SetWindowLongPtrW failed!\n");
+#endif
+			return S_FALSE;
+		}
 
+		// ImGui Win32 and DX11 implementation initialization.
 		bool result = ImGui_ImplWin32_Init(hWnd);
+		isImGuiImplWin32Initialized = result;
 		if (!result) {
 #if defined FMGUI_CPPIMMO
 			LOG_WRITELN_T("ImGui_ImplWin32_Init failed!",
@@ -530,8 +581,11 @@ FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, UINT syncInterval,
 #elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
 			std::fprintf(pFileStderr, "ImGui_ImplWin32_Init failed!\n");
 #endif
+			return S_FALSE;
 		}
+
 		result = ImGui_ImplDX11_Init(pDevice, pDeviceContext);
+		isImGuiImplDX11Initialized = result;
 		if (!result) {
 #if defined FMGUI_CPPIMMO
 			LOG_WRITELN_T("ImGui_ImplDX11_Init failed!",
@@ -539,33 +593,43 @@ FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, UINT syncInterval,
 #elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
 			std::fprintf(pFileStderr, "ImGui_ImplDX11_Init failed!\n");
 #endif
+			return S_FALSE;
 		}
-		ImGui::GetIO().ImeWindowHandle = hWnd;
+		imGuiIO.ImeWindowHandle = hWnd;
 
+		// Retrieve the back buffer from the IDXGISwapChain.
 		ID3D11Texture2D *pSwapChainBackBuffer = nullptr;
 		hResult = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
 			reinterpret_cast<LPVOID *>(&pSwapChainBackBuffer));
 		if (FAILED(hResult)) {
 #if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("GetBuffer failed!", Utils::Logger::Type::ERROR);
+			LOG_WRITELN_T("IDXGISwapChain::GetBuffer failed!",
+						  Utils::Logger::Type::ERROR);
 #elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "GetBuffer failed!\n");
+			std::fprintf(pFileStderr, "IDXGISwapChain::GetBuffer failed!\n");
 #endif
+			return S_FALSE;
 		}
 		hResult = pDevice->CreateRenderTargetView(pSwapChainBackBuffer,
 												  nullptr, &pRenderTargetView);
 		if (FAILED(hResult)) {
 #if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("CreateRenderTargetView failed!",
+			LOG_WRITELN_T("ID3D11Device::CreateRenderTargetView failed!",
 						  Utils::Logger::Type::ERROR);
 #elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "CreateRenderTargetView failed!\n");
+			std::fprintf(pFileStderr,
+						 "ID3D11Device::CreateRenderTargetView failed!\n");
 #endif
+			return S_FALSE;
 		}
 		ReleaseCOM(pSwapChainBackBuffer);
 		isInitialized = true;
 	}
 	else {
+		ImGui::SetCurrentContext(pImGuiContext);
+		// Check for NULL context.
+		if (!ImGui::GetCurrentContext())
+			return pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
 		ImGui_ImplWin32_NewFrame();
 		ImGui_ImplDX11_NewFrame();
 
@@ -622,18 +686,39 @@ FmGui::ShutdownHook(void)
 		return false;
 	}
 
-	ImGui_ImplDX11_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
+	if (isImGuiImplDX11Initialized) {
+		ImGui_ImplDX11_Shutdown();
+		isImGuiImplDX11Initialized = false;
+	}
+	
+	if (isImGuiImplWin32Initialized) {
+		ImGui_ImplWin32_Shutdown();
+		isImGuiImplWin32Initialized = false;
+	}
+	
+	if (pImGuiContext != nullptr) {
+		ImGui::DestroyContext(pImGuiContext);
+		pImGuiContext = nullptr;
+	}
 
 	ReleaseCOM(pDevice);
 	ReleaseCOM(pDeviceContext);
 	ReleaseCOM(pRenderTargetView);
 	if (hWnd) {
 		// Set hWnd's WndProc back to it's original proc.
-		SetWindowLongPtr(hWnd, GWLP_WNDPROC,
-						 reinterpret_cast<LONG_PTR>(pWndProcApp));
+		if (SetWindowLongPtrW(hWnd, GWLP_WNDPROC,
+			reinterpret_cast<LONG_PTR>(pWndProcApp)) == 0) {
+#if defined FMGUI_CPPIMMO
+			LOG_WRITELN_T("SetWindowLongPtrW failed!",
+						  Utils::Logger::Type::ERROR);
+#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
+			std::fprintf(pFileStderr, "SetWindowLongPtrW failed!\n");
+#endif
+			return false;
+		}
 	}
+	// Set the Present initialization check to false.
+	isInitialized = false;
 	return true;
 }
 
@@ -641,9 +726,8 @@ static void
 FmGui::OnResize(IDXGISwapChain *pSwapChain, UINT newWidth, UINT newHeight)
 {
 	/*
-	 * This function is not implemented yet.
-	 */
-	/*
+	 * This function is not fully implemented yet.
+	 *
 	 * First release the RenderTargetView.
 	 * Then Resize the SwapChain buffers.
 	 * Get the BackBuffer, Recreate the RenderTargetView,
@@ -651,65 +735,89 @@ FmGui::OnResize(IDXGISwapChain *pSwapChain, UINT newWidth, UINT newHeight)
 	 * Also set the render targets of the DeviceContext as well as the
 	 * rasterizer viewport.
 	 */
-	 /* CODE FROM ANOTHER ONE OF MY PROJECTS
-	 pRenderTarget.Reset();
-	 pDepthStencilView.Reset();
-	 pDepthStencilBuffer.Reset();
+	ReleaseCOM(pRenderTargetView);
 
-	 HRESULT hr = S_OK;
+	DXGI_SWAP_CHAIN_DESC swapChainDesc;
+	ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
+	if (FAILED(pSwapChain->GetDesc(&swapChainDesc))) {
+#if defined FMGUI_CPPIMMO
+		LOG_WRITELN_T("IDXGISwapChain::GetDesc failed!",
+					  Utils::Logger::Type::ERROR);
+#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
+		std::fprintf(pFileStderr, "IDXGISwapChain::GetDesc failed!\n");
+#endif
+		return;
+	}
+	
+	if (FAILED(pSwapChain->ResizeBuffers(
+		swapChainDesc.BufferCount,
+		newWidth, newHeight,
+		swapChainDesc.BufferDesc.Format, 0u))) {
+#if defined FMGUI_CPPIMMO
+		LOG_WRITELN_T("IDXGISwapChain::ResizeBuffers failed!",
+					  Utils::Logger::Type::ERROR);
+#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
+		std::fprintf(pFileStderr, "IDXGISwapChain::ResizeBuffers failed!\n");
+#endif
+		return;
+	}
 
-	 hr = pSwapChain->ResizeBuffers(1, newWidth, newHeight, DXGI_FORMAT_B8G8R8A8_UNORM, 0u);
-	 wrl::ComPtr<ID3D11Texture2D> pBackBuffer; //Create our BackBuffer
-	 hr = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(pBackBuffer.GetAddressOf()));
-	 THROW_IF_FAILED(hr, "GetBuffer failed");
-	 //Create our Render Target
-	 hr = pDevice->CreateRenderTargetView(pBackBuffer.Get(), nullptr, pRenderTarget.GetAddressOf());
-	 pBackBuffer.Reset();
-	 THROW_IF_FAILED(hr, "Create render target view failed");
+	ID3D11Texture2D *pSwapChainBackBuffer = nullptr;
+	if (FAILED(pSwapChain->GetBuffer(0u, __uuidof(ID3D11Texture2D),
+		reinterpret_cast<void **>(&pSwapChainBackBuffer)))) {
+#if defined FMGUI_CPPIMMO
+		LOG_WRITELN_T("IDXGISwapChain::GetBuffer failed!",
+					  Utils::Logger::Type::ERROR);
+#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
+		std::fprintf(pFileStderr, "IDXGISwapChain::GetBuffer failed!\n");
+#endif
+		ReleaseCOM(pSwapChainBackBuffer);
+		return;
+	}
 
-	 D3D11_TEXTURE2D_DESC ds = {};
-	 ds.Width = newWidth;
-	 ds.Height = newHeight;
-	 ds.MipLevels = 1;
-	 ds.ArraySize = 1;
-	 ds.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	 ds.SampleDesc.Count = samplingLevel;
-	 ds.SampleDesc.Quality = sampleQuality - 1;
-	 ds.Usage = D3D11_USAGE_DEFAULT;
-	 ds.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-	 ds.CPUAccessFlags = 0;
-	 ds.MiscFlags = 0;
-
-	 hr = pDevice->CreateTexture2D(&ds, nullptr, pDepthStencilBuffer.GetAddressOf());
-	 THROW_IF_FAILED(hr, "DepthStencilBuffer could not be created");
-	 hr = pDevice->CreateDepthStencilView(pDepthStencilBuffer.Get(), nullptr, pDepthStencilView.GetAddressOf());
-	 THROW_IF_FAILED(hr, "DepthStencilView could not be created");
-	 //Set our Render Target
-	 pContext->OMSetRenderTargets(1, pRenderTarget.GetAddressOf(), pDepthStencilView.Get());
-
-	 CD3D11_VIEWPORT viewport(0.0f, 0.0f, static_cast<float>(newWidth), static_cast<float>(newHeight), 0.0f, 1.0f);
-	 pContext->RSSetViewports(1, &viewport);
-	 */
+	if (FAILED(pDevice->CreateRenderTargetView(pSwapChainBackBuffer, nullptr,
+											   &pRenderTargetView))) {
+#if defined FMGUI_CPPIMMO
+		LOG_WRITELN_T("ID3D11Device::CreateRenderTargetView failed!",
+					  Utils::Logger::Type::ERROR);
+#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
+		std::fprintf(pFileStderr,
+					 "ID3D11Device::CreateRenderTargetView failed!\n");
+#endif
+		ReleaseCOM(pSwapChainBackBuffer);
+		return;
+	}
+	ReleaseCOM(pSwapChainBackBuffer);
+	pDeviceContext->OMSetRenderTargets(1, &pRenderTargetView, nullptr);
+	CD3D11_VIEWPORT viewport(0.0f, 0.0f, static_cast<float>(newWidth),
+							 static_cast<float>(newHeight), 0.0f, 1.0f);
+	pDeviceContext->RSSetViewports(1, &viewport);
 }
 
 static LRESULT
 FmGui::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	ImGuiIO &imGuiIO = ImGui::GetIO();
-	POINT cursorPos; GetCursorPos(&cursorPos);
-	if (FmGui::hWnd)
-		ScreenToClient(FmGui::hWnd, &cursorPos);
-	imGuiIO.MousePos.x = cursorPos.x;
-	imGuiIO.MousePos.y = cursorPos.y;
-
+	// Check if there is a valid context.
+	if (ImGui::GetCurrentContext()) {
+		ImGuiIO &imGuiIO = ImGui::GetIO();
+		POINT cursorPos; GetCursorPos(&cursorPos);
+		if (FmGui::hWnd)
+			ScreenToClient(FmGui::hWnd, &cursorPos);
+		imGuiIO.MousePos.x = cursorPos.x;
+		imGuiIO.MousePos.y = cursorPos.y;
+	}
+	// Only handle if widgets are enabled.
 	if (areWidgetsEnabled) {
-		if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+		// Check for a non-NULL context and handle ImGui events.
+		if (ImGui::GetCurrentContext()
+			&& ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam)) {
 			return TRUE;
-
+		}
+		// Handle user's non-NULL input routine.
 		if (pInputRoutine != nullptr)
 			pInputRoutine(uMsg, wParam, lParam);
 	}
-
+	// Other events.
 	switch (uMsg) {
 	case WM_SIZE: {
 		const UINT newWidth = static_cast<UINT>(LOWORD(lParam));
@@ -719,9 +827,20 @@ FmGui::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	}
-	return CallWindowProc(pWndProcApp, hWnd, uMsg, wParam, lParam);
+	return CallWindowProcW(pWndProcApp, hWnd, uMsg, wParam, lParam);
 }
 
 #if defined FMGUI_CPPIMMO
 } // namespace Utils
 #endif
+
+/*
+ * FmGuiConfig's members need be defined where imgui/imgui.h is included. 
+ */
+FmGuiConfig::FmGuiConfig(void)
+	: imGuiStyle(FmGuiStyle::DARK),
+	  imGuiConfigFlags(static_cast<ImGuiConfigFlags>(ImGuiConfigFlags_NavNoCaptureKeyboard)),
+	  imGuiIniFileName(),
+	  imGuiIniSavingRate(5.0f)
+{
+}

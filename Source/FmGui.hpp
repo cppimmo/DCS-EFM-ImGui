@@ -26,8 +26,8 @@
 ** ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ** =============================================================================
 **/
-#ifndef __FMGUI_HPP__
-#define __FMGUI_HPP__
+#ifndef _FMGUI_HPP_
+#define _FMGUI_HPP_ 0
 
 /* 
  * This a preprocessor flag specific to the author's project. It should be left
@@ -55,18 +55,64 @@
  */
 // #include <imgui/imgui.h>
 
-// Define FMGUI_ENABLE_IO to enable output.
+// Define FMGUI_ENABLE_IO to disable ouput while in _DEBUG.
 #define FMGUI_ENABLE_IO
 
 #if !defined(FMGUI_FASTCALL)
 #define FMGUI_FASTCALL __fastcall
 #endif
 
-// Disable ImGui XINPUT.
+// Disable ImGui XINPUT
 #define IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
 
 // Forward declare IDXGISwapChain structure.
 struct IDXGISwapChain;
+
+enum struct FmGuiStyle
+{
+	CLASSIC,
+	DARK,
+	LIGHT
+};
+
+// Forward declare typedef for ImGuiConfigFlags.
+using ImGuiConfigFlags = int;
+
+struct FmGuiConfig
+{
+public:
+	FmGuiConfig(void);
+	FmGuiConfig(const FmGuiConfig &) = default;
+	FmGuiConfig &operator=(const FmGuiConfig &) = default;
+	FmGuiConfig(FmGuiConfig &&) = default;
+	FmGuiConfig &operator=(FmGuiConfig &&) = default;
+public:
+	/*
+	 * Enumeration that can be set to the three default styles provided by ImGui
+	 * in the form FmGuiStyle::CLASSIC, FmGuiStyle::DARK, & FmGuiStyle::LIGHT.
+	 * Default value: FmGuiStyle::DARK
+	 */
+	FmGuiStyle imGuiStyle;
+	/*
+	 * The configuration flags passed to the ImGui context. See ImGui
+	 * documentation for ImGuiConfigFlags.
+	 * Default value: ImGuiConfigFlags_NavNoCaptureKeyboard
+	 */
+	ImGuiConfigFlags imGuiConfigFlags;
+	/*
+	 * Full path and filename of the auto generated ImGui .ini configuration file.
+	 * This can be a full or relative path. See Examples/Fm.cpp for more info.
+	 * This string is empty by default and results in no configuration file.
+	 * Default value: "" (empty)
+	 */
+	std::string imGuiIniFileName;
+	/*
+	 * The rate in seconds at which the .ini configuration file is updated.
+	 * Only applicable when the ImGui .ini is enabled.
+	 * Default value: 5.0f
+	 */
+	float imGuiIniSavingRate;
+};
 
 #if defined FMGUI_CPPIMMO
 namespace Utils
@@ -131,11 +177,18 @@ void RedirectStdErr(std::FILE *const pFile);
 bool SetWidgetVisibility(bool isEnabled);
 /*
  * Start the FmGui and ImGui.
+ * You can supply an optional configuration using an FmGuiConfig object.
+ * Example:
+ * FmGuiConfig config;
+ * config.imGuiStyle = FmGuiStyle::DARK;
+ * if (!FmGui::StartupHook(config)) {
+ *     // FAILED!
+ * }
  */
 #if defined FMGUI_CPPIMMO
-[[nodiscard]] bool StartupHook(void);
+[[nodiscard]] bool StartupHook(const FmGuiConfig &config = FmGuiConfig());
 #else
-bool StartupHook(void);
+bool StartupHook(const FmGuiConfig &config = FmGuiConfig());
 #endif
 /*
  * Return formatted string of the D3D context memory addresses.
@@ -193,4 +246,4 @@ ReleaseCOM(Type **ppInterface)
 } // namespace Utils
 #endif
 
-#endif // __FMGUI_HPP__
+#endif /* !_FMGUI_HPP_ */

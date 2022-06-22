@@ -32,3 +32,14 @@
 
 ### Known Issues
 - Crashes on second mission quit when ImGui IniFileName is not null pointer.
+
+## Version 1.0.2 - 
+
+### Added
+
+### Fixed
+
+### Changed
+- Update instructions in *README.md*.
+
+### Known Issues

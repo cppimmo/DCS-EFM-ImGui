@@ -150,32 +150,30 @@ inline FmGuiMessage::FmGuiMessage(
 {
 }
 
-namespace FmGui
-{
-
-using IDXGISwapChainPresentPtr =
-	std::add_pointer<HRESULT FMGUI_FASTCALL(IDXGISwapChain *pSwapChain,
-		UINT syncInterval, UINT flags)>::type;
-using ImGuiRoutinePtr = std::add_pointer<void(void)>::type;
-using ImGuiInputRoutinePtr = std::add_pointer<void(UINT uMsg, WPARAM wParam,
+using FmGuiMessageCallback =
+	std::add_pointer<void(const FmGuiMessage &message)>::type;
+using FmGuiRoutinePtr = std::add_pointer<void(void)>::type;
+using FmGuiInputRoutinePtr = std::add_pointer<void(UINT uMsg, WPARAM wParam,
 												   LPARAM lParam)>::type;
 
+namespace FmGui
+{
 /*
  * Set pointer to function that uses the ImGui immediate mode widgets.
- * See ImGuiRoutinePtr for a specification.
+ * See FmGuiRoutinePtr for a specification.
  * Example:
- * void FMImGuiRoutine(void)
+ * void FmGuiRoutine(void)
  * {
  * 	   ImGui::ShowDemoWindow();
  * }
- * Elsewhere perform a call to SetImGuiRoutinePtr(FMImGuiRoutine);
+ * Elsewhere perform a call to SetRoutinePtr(FmGuiRoutine);
  */
-void SetImGuiRoutinePtr(ImGuiRoutinePtr pRoutine);
+void SetRoutinePtr(FmGuiRoutinePtr pRoutine);
 /*
  * Set pointer to function that handles Win32 WndProc input.
- * See ImGuiInputRoutinePtr for a specification.
+ * See FmGuiInputRoutinePtr for a specification.
  * Example:
- * void FMImGuiInputRoutine(UINT uMsg, WPARAM wParam, LPARAM lParam)
+ * void FmGuiInputRoutine(UINT uMsg, WPARAM wParam, LPARAM lParam)
  * {
  * 	   // Toggle widgets on Alt + W keypress.
  * 	   static bool areWidgetsEnabled = true;
@@ -186,14 +184,14 @@ void SetImGuiRoutinePtr(ImGuiRoutinePtr pRoutine);
  * 	   	   }
  * 	   }
  * }
- * Elsewhere perform a call to SetImGuiInputRoutinePtr(FMImGuiInputRoutine);
+ * Elsewhere perform a call to SetInputRoutinePtr(FmGuiInputRoutine);
  * 
  * Supplementary reading:
  * https://docs.microsoft.com/en-us/windows/win32/inputdev/using-keyboard-input
  * https://docs.microsoft.com/en-us/windows/win32/inputdev/keyboard-input
  * https://docs.microsoft.com/en-us/windows/win32/learnwin32/keyboard-input
  */
-void SetImGuiInputRoutinePtr(ImGuiInputRoutinePtr pInputRoutine);
+void SetInputRoutinePtr(FmGuiInputRoutinePtr pInputRoutine);
 /*
  * Set all widget visibility and return previous value.
  */
@@ -221,6 +219,10 @@ const FmGuiMessage &GetLastError(void);
  * Return a vector of error messages in order of first to last occurence.
  */
 std::vector<FmGuiMessage> GetEveryMessage(void);
+/*
+ * Sets the FmGuiMessageCallback to be used by FmGui.
+ */
+void SetMessageCallback(FmGuiMessageCallback pMessageCallback);
 /*
  * Return formatted string of the D3D debug layer warning/error
  * messages. Note: DirectX 11 does not have a callback to do this

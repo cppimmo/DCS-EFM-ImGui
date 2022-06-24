@@ -1,5 +1,8 @@
 # DISTRIBUTE.PS1|CREATED 23-JUN-2022|LAST MODIFIED 23-JUN-2022
 
+# Once the CMake project is generated and built using Visual Studio you may use
+# this scrip to create a archival release.
+
 Param(
 	[Switch]$verbose,
 	[String]$version
@@ -37,7 +40,9 @@ New-Item -ItemType Directory -Force -Path $distributeDirLib *>> $logFile
 New-Item -ItemType Directory -Force -Path $distributeDirInclude *>> $logFile
 
 Copy-Item .\Include\FmGui.hpp -Destination $distributeDirInclude *>> $logFile
-Copy-Item .\Build\Release\FmGui.lib -Destination $distributeDirLib *>> $logFile
+Copy-Item .\Build\Release\* -Destination ($distributeDirLib + "\release") *>> $logFile
+Copy-Item .\Build\Debug\* -Destination ($distributeDirLib + "\debug") *>> $logFile
+
 Copy-Item .\README.md -Destination $distributeDir *>> $logFile
 Copy-Item .\LICENSE.txt -Destination $distributeDir *>> $logFile
 Copy-Item .\CHANGELOG.md -Destination $distributeDir *>> $logFile

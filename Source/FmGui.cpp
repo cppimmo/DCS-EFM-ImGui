@@ -54,6 +54,10 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
 	HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+using IDXGISwapChainPresentPtr =
+	std::add_pointer<HRESULT FMGUI_FASTCALL(IDXGISwapChain *pSwapChain,
+		UINT syncInterval, UINT flags)>::type;
+
 namespace FmGui
 {
 // Functions
@@ -88,8 +92,8 @@ static HWND hWnd = nullptr;
 // WndProc used by application, in this case DCS: World
 static WNDPROC pWndProcApp = nullptr;
 static bool isInitialized = false, areWidgetsEnabled = false;
-static ImGuiRoutinePtr pWidgetRoutine = nullptr;
-static ImGuiInputRoutinePtr pInputRoutine = nullptr;
+static FmGuiRoutinePtr pWidgetRoutine = nullptr;
+static FmGuiInputRoutinePtr pInputRoutine = nullptr;
 // ImGui Configuration
 // static constexpr ImGuiConfigFlags imGuiConfigFlags =
 // 	ImGuiConfigFlags_NavNoCaptureKeyboard;
@@ -101,30 +105,48 @@ static ImPlotContext *pImPlotContext = nullptr;
 static bool isImGuiImplWin32Initialized = false;
 static bool isImGuiImplDX11Initialized = false;
 static FmGuiConfig fmGuiConfig;
+static FmGuiMessageCallback pMessageCallback = nullptr;
 static std::stack<FmGuiMessage> messageStack;
 static constexpr std::stack<FmGuiMessage>::size_type
 	messageStackMaxSize = 24;
 } // namespace FmGui
 
+// Todo turn this logic into a inline static function.
 #define PUSH_MSG(SEVERITY, CONTENT) \
 	if (messageStack.size() > messageStackMaxSize) { \
 		messageStack.pop(); \
 	} \
 	else { \
-		messageStack.emplace( \
-			FmGuiMessage(SEVERITY, CONTENT, __FILE__, __func__, __LINE__)); \
+		if (messageStack.top().content != CONTENT) { \
+			messageStack.emplace( \
+				FmGuiMessage( \
+					SEVERITY, \
+					CONTENT, \
+					__FILE__, \
+					__func__, \
+					__LINE__ \
+			)); \
+			if (pMessageCallback != nullptr) \
+				pMessageCallback(messageStack.top()); \
+		} \
 	}
 
 void
-FmGui::SetImGuiRoutinePtr(ImGuiRoutinePtr pRoutine)
+FmGui::SetRoutinePtr(FmGuiRoutinePtr pRoutine)
 {
 	pWidgetRoutine = pRoutine;
 }
 
 void
-FmGui::SetImGuiInputRoutinePtr(ImGuiInputRoutinePtr pInputRoutine)
+FmGui::SetInputRoutinePtr(FmGuiInputRoutinePtr pInputRoutine)
 {
 	FmGui::pInputRoutine = pInputRoutine;
+}
+
+void
+FmGui::SetMessageCallback(FmGuiMessageCallback pMessageCallback)
+{
+	FmGui::pMessageCallback = pMessageCallback;
 }
 
 std::string

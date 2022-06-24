@@ -2,39 +2,49 @@
 
 ![In-game image.](Images/InDCS.png)
 
-FmGui is a project that implements the Dear ImGui library in the DCS: World EFM
-API. Its purpose is to greatly ease the development process of the user's EFM.
+FmGui is a project that implements the Dear ImGui library, and optionally the
+ImPlot extension, for use with the DCS: World EFM API. Its purpose is to greatly
+ease the development process of the user's EFM.
 
 # Table of Contents
 
 1. [Building](#building)
+  1. [Setting Up ImGui](#imgui)
+  2. [Setting Up ImPlot](#implot)
+  3. [Setting Up MinHook](#minhook)
 2. [Examples](#examples)
 3. [Configuration](#config)
 4. [Note](#note)
 5. [License](#license)
 
 ## 1. Building: <a name="building"></a>
-To use the FmGui.hpp and FmGui.cpp source files, they must be included in the
+To use the [Include/FmGui.hpp](Include/FmGui.hpp) and
+[Source/FmGui.cpp](Source/FmGui.cpp) source files, they must be included in the
 user's EFM Visual Studio or CMake project. In Visual Studio you can add existing
 file(s) as seen below.
 
 ![Add Existing](Images/AddExisting.png)
 
-The user will need to have the
-"Desktop development with C++" and "Game development with C++" Visual Studio
-workloads installed to successful build these source files. The process for
-installing these workloads can be seen below.
+The user will need to have the "Desktop development with C++" and
+"Game development with C++" Visual Studio workloads installed to successful
+build these source files. The "Game development with C++" workload is needed,
+because it contains the DirectX SDK. The process for installing these workloads
+can be seen below.
 
 ![Modify Workloads](Images/Modify.png)
 
 ![Add Workloads](Images/Workloads.png)
 
-The source files use the ImGui and MinHook libraries.
+The source files use the ImGui, ImPlot (optionally), and MinHook libraries.
 
-You may find ImGui version 1.87
-[here](https://github.com/ocornut/imgui/releases/tag/v1.87), and you can find
+You may find ImGui v1.87
+[here](https://github.com/ocornut/imgui/releases/tag/v1.87)
+ImPlot v0.13
+[here](t/implot/releases/tag/v0.13), and you can find
 MinHook v1.3.3
 [here](https://github.com/TsudaKageyu/minhook/releases/tag/v1.3.3).
+
+### 1.1 Setting Up ImGui <a name="imgui"></a>
 
 Including ImGui in your EFM project is really simple. FmGui assumes that you
 store the ImGui source files in their original folder and add them to your
@@ -60,20 +70,70 @@ below.
         - imstb_rectpack.h
         - imstb_textedit.h
         - imstb_truetype.h
+        - ...
+      - ...
   - MY_EFM_PROJECT
     - FmGui.hpp
     - FmGui.cpp
     - .vcxproj in this directory.
+    - ...
   - .sln in this directory.
+  - ...
 
 In Visual Studio select your project in the Solution Explorer and then add the
 following entry to *Configuration Properties -> C/C++ -> General -> Additional
-Include Directories*: $(ProjectDir)..\lib\imgui-1.87\
+Include Directories*: `$(ProjectDir)..\lib\imgui-1.87\imgui\`
 
 Since ImGui is distributed in source form you must add the .cpp files to your
-project as seen earlier. You can also press Shift + Alt + A and select
-imgui.cpp, imgui_demo.cpp, imgui_draw.cpp, imgui_impl_dx11.cpp,
+project as seen earlier. You can also press Shift + Alt + A and select imgui.cpp, imgui_demo.cpp (not optional), imgui_draw.cpp, imgui_impl_dx11.cpp,
 imgui_impl_win32.cpp, imgui_tables.cpp, and imgui_widgets.cpp.
+
+You could also add the header files to your include path, but FmGui assumes the
+ImGui headers can be found in the current working directory.
+
+### 1.2 Setting Up ImPlot <a name="implot"></a>
+
+ImPlot is an extension for ImGui that add many useful new widgets such as plots,
+graphs, charts, and more.
+
+An ImPlot directory setup might look like this:
+- EFM
+  - lib
+    - implot-0.13
+      - implot.cpp
+      - implot.h
+      - implot_demo.cpp
+      - implot_internal.h
+      - implot_items.cpp
+      - ...
+    - ...
+  - MY_EFM_PROJECT
+    - FmGui.hpp
+    - FmGui.cpp
+    - .vcxproj in this directory.
+    - ...
+  - .sln in this directory.
+  - ...
+
+In Visual Studio select your project in the Solution Explorer and then add the
+following entry to *Configuration Properties -> C/C++ -> General -> Additional
+Include Directories*: `$(ProjectDir)..\lib\implot-0.13\`
+
+Much like ImGui, ImPlot is distributed in the source form so you need to add
+the .cpp files to your project in the same manner. You can press Shift + Alt + A and select implot.cpp, implot_demo.cpp (not optional), and implot_items.cpp.
+
+Note: you do not have to use the ImPlot extension to use/build FmGui. You can
+disable ImPlot as shown in the source code example below:
+```c++
+/* In file FmGui.hpp */
+/*
+ * Simply comment out the "#define FMGUI_ENABLE_IMPLOT" line as seen below.
+ */
+// Define FMGUI_ENABLE_IMPLOT to enable the ImPlot extension.
+// #define FMGUI_ENABLE_IMPLOT
+```
+
+### 1.3 Setting Up MinHook <a name="minhook"></a>
 
 As for the MinHook v1.3.3 release, assume the same project directory
 structure.
@@ -83,12 +143,19 @@ structure.
     - MinHook_133 (directory has been renamed)
       - lib
         - libMinHook-v\<Platform Toolset\>-\<Run-time Type\>.x64.lib
+        - ...
       - include
+        - ...
+    - ...
   - MY_EFM_PROJECT
     - FmGui.hpp
     - FmGui.cpp
     - .vcxproj in this directory.
+    - ...
   - .sln in this directory.
+  - ...- FmGui.hpp
+    - FmGui.cpp
+    - .vcxproj in this directory.
 
 I personally recommended downloading the the
 [static library release](https://github.com/TsudaKageyu/minhook/releases/download/v1.3.3/MinHook_133_lib.zip)

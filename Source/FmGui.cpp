@@ -28,20 +28,24 @@
 **/
 #include "FmGui.hpp"
 // #include "cppimmo/FmGui.hpp"
-#if defined FMGUI_CPPIMMO
-#include "cppimmo/Logger.hpp"
-#endif
+
 #include <MinHook.h>
 
 #include <sstream>
+#include <stack>
+#include <algorithm>
 
 /* DirectX headers here: */
 #include <d3d11.h>
 
 /* ImGui Implementation Headers here: */
-#include <imgui/imgui.h>
-#include <imgui/imgui_impl_dx11.h>
-#include <imgui/imgui_impl_win32.h>
+#include <imgui.h>
+#include <imgui_impl_dx11.h>
+#include <imgui_impl_win32.h>
+
+#if defined FMGUI_ENABLE_IMPLOT
+#include <implot.h>
+#endif
 
 /* Simple linking solution. */
 #pragma comment(lib, "d3d11.lib")
@@ -50,15 +54,11 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
 	HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-#if defined FMGUI_CPPIMMO
-namespace Utils
-{
-#endif
-
 namespace FmGui
 {
 // Functions
 static LPVOID LookupSwapChainVTable(void);
+static std::string MinHookStatusToStdString(MH_STATUS mhStatus);
 static HRESULT FMGUI_FASTCALL SwapChainPresentImpl(
 	IDXGISwapChain *pSwapChain,
 	UINT syncInterval,
@@ -95,10 +95,25 @@ static ImGuiInputRoutinePtr pInputRoutine = nullptr;
 // 	ImGuiConfigFlags_NavNoCaptureKeyboard;
 // static constexpr const char *imGuiConfigFileName = "imgui.ini";
 static ImGuiContext *pImGuiContext = nullptr;
+#if defined FMGUI_ENABLE_IMPLOT
+static ImPlotContext *pImPlotContext = nullptr;
+#endif
 static bool isImGuiImplWin32Initialized = false;
 static bool isImGuiImplDX11Initialized = false;
 static FmGuiConfig fmGuiConfig;
+static std::stack<FmGuiMessage> messageStack;
+static constexpr std::stack<FmGuiMessage>::size_type
+	messageStackMaxSize = 24;
 } // namespace FmGui
+
+#define PUSH_MSG(SEVERITY, CONTENT) \
+	if (messageStack.size() > messageStackMaxSize) { \
+		messageStack.pop(); \
+	} \
+	else { \
+		messageStack.emplace( \
+			FmGuiMessage(SEVERITY, CONTENT, __FILE__, __func__, __LINE__)); \
+	}
 
 void
 FmGui::SetImGuiRoutinePtr(ImGuiRoutinePtr pRoutine)
@@ -110,18 +125,6 @@ void
 FmGui::SetImGuiInputRoutinePtr(ImGuiInputRoutinePtr pInputRoutine)
 {
 	FmGui::pInputRoutine = pInputRoutine;
-}
-
-void
-FmGui::RedirectStdOut(std::FILE *const pFile)
-{
-	pFileStdout = pFile;
-}
-
-void
-FmGui::RedirectStdErr(std::FILE *const pFile)
-{
-	pFileStderr = pFile;
 }
 
 std::string
@@ -140,39 +143,20 @@ FmGui::AddressDump(void)
 	return oss.str();
 }
 
-#if defined FMGUI_CPPIMMO
-std::optional<std::string>
-#else
 std::string
-#endif
 FmGui::DebugLayerMessageDump(void)
 {
 	ID3D11InfoQueue *pInfoQueue = nullptr;
 	if (!pDevice || FAILED(pDevice->QueryInterface(__uuidof(ID3D11InfoQueue),
 		reinterpret_cast<void **>(&pInfoQueue)))) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("QueryInterface failed!", Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "QueryInterface failed!\n");
-#endif
-#if defined FMGUI_CPPIMMO
-		return std::nullopt;
-#else
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "QueryInterface failed!");
 		return std::string();
-#endif
 	}
 
 	if (FAILED(pInfoQueue->PushEmptyStorageFilter())) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("PushEmptyStorageFilter failed!", Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "PushEmptyStorageFilter failed!\n");
-#endif
-#if defined FMGUI_CPPIMMO
-		return std::nullopt;
-#else
+		PUSH_MSG(FmGuiMessageSeverity::HIGH,
+				 "ID3D11InfoQueue::PushEmptyStorageFilter failed!");
 		return std::string();
-#endif
 	}
 
 	std::ostringstream oss;
@@ -181,44 +165,21 @@ FmGui::DebugLayerMessageDump(void)
 	for (UINT64 index = 0; index < messageCount; ++index) {
 		SIZE_T messageSize = 0;
 		// Get the size of the message.
-		if (FAILED(pInfoQueue->GetMessageW(index, nullptr, &messageSize))) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("GetMessageW failed!", Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "GetMessageW failed!\n");
-#endif
-#if defined FMGUI_CPPIMMO
-			return std::nullopt;
-#else
+		if (FAILED(pInfoQueue->GetMessage(index, nullptr, &messageSize))) {
+			PUSH_MSG(FmGuiMessageSeverity::HIGH, "GetMessage failed!");
 			return std::string();
-#endif
 		}
 		// Allocate memory.
 		D3D11_MESSAGE *message = (D3D11_MESSAGE *)std::malloc(messageSize);
 		if (!message) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("message memory alloc failed!", Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "message memory alloc failed!\n");
-#endif
-#if defined FMGUI_CPPIMMO
-			return std::nullopt;
-#else
+			PUSH_MSG(FmGuiMessageSeverity::HIGH, "std::malloc failed!");
 			return std::string();
-#endif
 		}
 		// Get the message itself.
-		if (FAILED(pInfoQueue->GetMessageW(index, message, &messageSize))) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("GetMessageW failed!", Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "GetMessageW failed!\n");
-#endif
-#if defined FMGUI_CPPIMMO
-			return std::nullopt;
-#else
+		if (FAILED(pInfoQueue->GetMessage(index, message, &messageSize))) {
+			PUSH_MSG(FmGuiMessageSeverity::HIGH,
+					 "ID3D11InfoQueue::GetMessaged failed!");
 			return std::string();
-#endif
 		}
 		
 		oss << "D3D11 MESSAGE|ID:" << static_cast<int>(message->ID)
@@ -229,13 +190,8 @@ FmGui::DebugLayerMessageDump(void)
 		std::free(message);
 	}
 	pInfoQueue->ClearStoredMessages();
-
 	ReleaseCOM(pInfoQueue);
-#if defined FMGUI_CPPIMMO
-	return std::optional<std::string>{ oss.str() };
-#else
 	return std::string();
-#endif
 }
 
 static LPVOID
@@ -261,11 +217,8 @@ FmGui::LookupSwapChainVTable(void)
 	wndClassEx.hIconSm = nullptr;
 
 	if (RegisterClassExA(&wndClassEx) == 0) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("RegisterClassEx failed!", Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "RegisterClassEx failed!\n");
-#endif
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "RegisterClassEx failed!");
+		return nullptr;
 	}
 
 	constexpr int fakeWndWidth = 100, fakeWndHeight = 100;
@@ -284,15 +237,10 @@ FmGui::LookupSwapChainVTable(void)
 		nullptr
 	);
 	if (!hLocalWnd) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("CreateWindowEx failed!", Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "CreateWindowEx failed!\n");
-#endif
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "CreateWindowEx failed!");
 		UnregisterClassA(wndClassEx.lpszClassName, wndClassEx.hInstance);
 		return nullptr;
-	}
-	*/
+	} */
 
 	D3D_FEATURE_LEVEL featureLevel;
 	const D3D_FEATURE_LEVEL featureLevels[] = {
@@ -302,9 +250,7 @@ FmGui::LookupSwapChainVTable(void)
 	const UINT numFeatureLevels = std::size(featureLevels);
 
 	UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#if defined FMGUI_CPPIMMO && IS_DEBUG
-	creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#elif defined _DEBUG
+#if defined _DEBUG
 	creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 	ID3D11Device *pLocalDevice = nullptr;
@@ -337,23 +283,19 @@ FmGui::LookupSwapChainVTable(void)
 	swapChainDesc.BufferCount = 1;
 	HWND hWndFg = GetForegroundWindow(); // GetActiveWindow()
 	if (!hWndFg) {
-#if defined FMGUI_CPPIMMO && IS_DEBUG
-		LOG_WRITELN_T("GetForegroundWindow failed!", Utils::Logger::Type::ERROR);
-#elif defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "GetForegroundWindow failed!\n");
-#endif
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "GetForegroundWindow failed!");
 		return nullptr;
 	}
 	else {
 		constexpr int titleBufferSize = 256;
 		CHAR title[titleBufferSize];
 		GetWindowTextA(hWndFg, title, titleBufferSize);
-#if defined FMGUI_CPPIMMO && IS_DEBUG
-		LOG_WRITELN_T("FMGUI has window: \"" + std::string(title) + "\".\n",
-					  Utils::Logger::Type::MESSAGE);
-#elif defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "FMGUI has window: \"%s\".\n", title);
-#endif
+
+		char buffer[124];
+		const std::size_t bufferLength = std::size(buffer);
+		std::snprintf(buffer, bufferLength, "FmGui has window \"%s\".", title);
+		PUSH_MSG(FmGuiMessageSeverity::NOTIFICATION,
+				 std::string(buffer, bufferLength));
 	}
 	swapChainDesc.OutputWindow = hWndFg;
 	swapChainDesc.Windowed = TRUE;
@@ -373,14 +315,10 @@ FmGui::LookupSwapChainVTable(void)
 		&featureLevel,
 		&pLocalDeviceContext
 	))) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("D3D11CreateDeviceAndSwapChain failed!",
-					  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "D3D11CreateDeviceAndSwapChain failed!\n");
-#endif
-		/* DestroyWindow(hLocalWnd);
-		UnregisterClassA(wndClassEx.lpszClassName, wndClassEx.hInstance); */
+		PUSH_MSG(FmGuiMessageSeverity::HIGH,
+				 "D3D11CreateDeviceAndSwapChain failed!");
+		// DestroyWindow(hLocalWnd);
+		// UnregisterClassA(wndClassEx.lpszClassName, wndClassEx.hInstance);
 		return nullptr;
 	}
 
@@ -393,9 +331,8 @@ FmGui::LookupSwapChainVTable(void)
 	ReleaseCOM(pLocalDevice);
 	ReleaseCOM(pLocalDeviceContext);
 	ReleaseCOM(pLocalSwapChain);
-
-	/*DestroyWindow(hLocalWnd);
-	UnregisterClassA(wndClassEx.lpszClassName, wndClassEx.hInstance); */
+	// DestroyWindow(hLocalWnd);
+	// UnregisterClassA(wndClassEx.lpszClassName, wndClassEx.hInstance);
 	return resultant;
 }
 
@@ -407,76 +344,56 @@ FmGui::SetWidgetVisibility(bool isEnabled)
 	return previousValue;
 }
 
+inline static std::string
+FmGui::MinHookStatusToStdString(MH_STATUS mhStatus)
+{
+	char buffer[124];
+	const std::size_t bufferLength = std::size(buffer);
+	const int written = std::snprintf(buffer, bufferLength, "%s",
+									  MH_StatusToString(mhStatus));
+	return (written > 0) ? std::string(buffer, written) : "";
+}
+
 bool
 FmGui::StartupHook(const FmGuiConfig &config)
 {
 	fmGuiConfig = config;
-#if defined FMGUI_CPPIMMO
-	LOG_WRITELN_T("Redirecting Direct3D routines...",
-				  Utils::Logger::Type::MESSAGE);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-	std::fprintf(pFileStdout, "Redirecting Direct3D routines...\n");
-#endif
-
+	PUSH_MSG(FmGuiMessageSeverity::NOTIFICATION,
+			 "Redirecting Direct3D routines...");
 	// HMODULE hDxgi = GetModuleHandleA(dxgiModuleName);
 	// DWORD_PTR dwpDxgi = reinterpret_cast<DWORD_PTR>(hDxgi);
 	LPVOID pSwapChainPresentOriginal = LookupSwapChainVTable();
 	if (!pSwapChainPresentOriginal) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("LookupSwapChainVTable failed!",
-					  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "LookupSwapChainVTable failed!\n");
-#endif
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "FmGui::LookupSwapChainVTable!");
 	}
 	// DWORD_PTR hDxgi = (DWORD_PTR)GetModuleHandle(L"dxgi.dll");
 	// 
 	// LPVOID pSwapChainPresentOriginal = reinterpret_cast<LPVOID>(
 	// 	(IDXGISwapChainPresentPtr)((DWORD_PTR)hDxgi + 0x5070));
 
-	auto status = MH_Initialize();
-	if (status != MH_OK) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("MH_Initialize failed: "
-					  + std::string(MH_StatusToString(status)),
-					  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "MH_Initialize failed: %s!\n",
-					 MH_StatusToString(status));
-#endif
+	MH_STATUS mhStatus = MH_Initialize();
+	if (mhStatus != MH_OK) {
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "MH_Initialize failed: "
+				 + MinHookStatusToStdString(mhStatus) + '!');
 		return false;
 	}
 
-	status = MH_CreateHook(pSwapChainPresentOriginal, &SwapChainPresentImpl,
+	mhStatus = MH_CreateHook(pSwapChainPresentOriginal, &SwapChainPresentImpl,
 		reinterpret_cast<LPVOID *>(&pSwapChainPresentTrampoline));
-	if (status != MH_OK) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("MH_CreateHook failed: "
-					  + std::string(MH_StatusToString(status)),
-					  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "MH_CreateHook failed: %s!\n",
-					 MH_StatusToString(status));
-#endif
+	if (mhStatus != MH_OK) {
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "MH_CreateHook failed: "
+				 + MinHookStatusToStdString(mhStatus) + '!');
 		return false;
 	}
-	status = MH_EnableHook(pSwapChainPresentOriginal);
-	if (status != MH_OK) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("MH_EnableHook failed: "
-					  + std::string(MH_StatusToString(status)),
-					  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(stderr, "MH_EnableHook failed: %s!\n",
-					 MH_StatusToString(status));
-#endif
+	mhStatus = MH_EnableHook(pSwapChainPresentOriginal);
+	if (mhStatus != MH_OK) {
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "MH_EnableHook failed: "
+				 + MinHookStatusToStdString(mhStatus) + '!');
 		return false;
 	}
-#if defined FMGUI_CPPIMMO
-	LOG_WRITELN("Direct3D Redirection complete.");
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-	std::fprintf(pFileStdout, "Direct3D Redirection complete.\n");
-#endif
+
+	PUSH_MSG(FmGuiMessageSeverity::NOTIFICATION,
+			 "Direct3D Redirection complete.");
 	return true;
 }
 
@@ -488,46 +405,51 @@ FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, UINT syncInterval,
 		bool boolResult;
 		HRESULT hResult;
 
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN("Setting up present hook...");
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStdout, "Setting up present hook...\n");
-#endif
+		PUSH_MSG(FmGuiMessageSeverity::NOTIFICATION,
+				 "Setting up present hook...");
 		hResult = GetDevice(pSwapChain, &pDevice);
 		if (FAILED(hResult)) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("FmGui::GetDevice failed!",
-						  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "FmGui::GetDevice failed!\n");
-#endif
+			PUSH_MSG(FmGuiMessageSeverity::HIGH, "FmGui::GetDevice failed!");
 			return pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
 		}
 		hResult = GetDeviceContext(pSwapChain, &pDevice,
 								   &pDeviceContext);
 		if (FAILED(hResult)) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("FmGui::GetDeviceContext failed!",
-						  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(stderr, "FmGui::GetDeviceContext failed!\n");
-#endif
+			PUSH_MSG(FmGuiMessageSeverity::HIGH,
+					 "FmGui::GetDeviceContext failed!");
 			return pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
 		}
 		pImGuiContext = ImGui::CreateContext();
 		if (!pImGuiContext) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("ImGui::CreateContext failed!",
-						  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(stderr, "ImGui::CreateContext failed!\n");
-#endif
+			PUSH_MSG(FmGuiMessageSeverity::HIGH,
+					 "ImGui::CreateContext failed!");
 			return pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
 		}
+#if defined FMGUI_ENABLE_IMPLOT
+		pImPlotContext = ImPlot::CreateContext();
+		if (!pImPlotContext) {
+			PUSH_MSG(FmGuiMessageSeverity::HIGH,
+					 "ImPlot::CreateContext failed!");
+			return pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
+		}
+#endif
 		ImGui::SetCurrentContext(pImGuiContext);
+#if defined FMGUI_ENABLE_IMPLOT
+		ImPlot::SetCurrentContext(pImPlotContext);
+#endif
 		ImGuiIO &imGuiIO = ImGui::GetIO();
 		// Configuration of the current ImGui context.
 		imGuiIO.ConfigFlags |= fmGuiConfig.imGuiConfigFlags;
+#if defined FMGUI_ENABLE_IMPLOT
+		/*
+		 * For ImPlot enable meshes with over 64,000 vertices while using the
+		 * default backend 16 bit value for indexed drawing.
+		 * https://github.com/ocornut/imgui/issues/2591
+		 * (Extremely Important Note) Option 2:
+		 * https://github.com/epezent/implot/blob/master/README.md
+		 */
+		imGuiIO.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+#endif
 		if (fmGuiConfig.imGuiIniFileName.empty())
 			imGuiIO.IniFilename = nullptr;
 		else
@@ -549,25 +471,16 @@ FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, UINT syncInterval,
 		DXGI_SWAP_CHAIN_DESC swapChainDesc;
 		ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
 		if (FAILED(pSwapChain->GetDesc(&swapChainDesc))) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("IDXGISwapChain::GetDesc failed!",
-						  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(stderr, "IDXGISwapChain::GetDesc failed!\n");
-#endif
+			PUSH_MSG(FmGuiMessageSeverity::HIGH,
+					 "IDXGISwapChain::GetDesc failed!");
 			return pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
 		}
 		// Set global window handle to the OutputWindow of the IDXGISwapChain.
 		hWnd = swapChainDesc.OutputWindow;
-		pWndProcApp = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(hWnd,
+		pWndProcApp = reinterpret_cast<WNDPROC>(SetWindowLongPtr(hWnd,
 			GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WndProc)));
 		if (pWndProcApp == NULL) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("SetWindowLongPtrW failed!",
-						  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "SetWindowLongPtrW failed!\n");
-#endif
+			PUSH_MSG(FmGuiMessageSeverity::HIGH, "SetWindowLongPtr failed!");
 			return S_FALSE;
 		}
 
@@ -575,24 +488,16 @@ FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, UINT syncInterval,
 		bool result = ImGui_ImplWin32_Init(hWnd);
 		isImGuiImplWin32Initialized = result;
 		if (!result) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("ImGui_ImplWin32_Init failed!",
-						  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "ImGui_ImplWin32_Init failed!\n");
-#endif
+			PUSH_MSG(FmGuiMessageSeverity::HIGH,
+					 "ImGui_ImplWin32_Init failed!");
 			return S_FALSE;
 		}
 
 		result = ImGui_ImplDX11_Init(pDevice, pDeviceContext);
 		isImGuiImplDX11Initialized = result;
 		if (!result) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("ImGui_ImplDX11_Init failed!",
-						  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "ImGui_ImplDX11_Init failed!\n");
-#endif
+			PUSH_MSG(FmGuiMessageSeverity::HIGH,
+					 "ImGui_ImplDX11_Init failed!");
 			return S_FALSE;
 		}
 		imGuiIO.ImeWindowHandle = hWnd;
@@ -602,24 +507,15 @@ FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, UINT syncInterval,
 		hResult = pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
 			reinterpret_cast<LPVOID *>(&pSwapChainBackBuffer));
 		if (FAILED(hResult)) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("IDXGISwapChain::GetBuffer failed!",
-						  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "IDXGISwapChain::GetBuffer failed!\n");
-#endif
+			PUSH_MSG(FmGuiMessageSeverity::HIGH,
+					 "IDXGISwapChain::GetBuffer failed!");
 			return S_FALSE;
 		}
 		hResult = pDevice->CreateRenderTargetView(pSwapChainBackBuffer,
 												  nullptr, &pRenderTargetView);
 		if (FAILED(hResult)) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("ID3D11Device::CreateRenderTargetView failed!",
-						  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr,
-						 "ID3D11Device::CreateRenderTargetView failed!\n");
-#endif
+			PUSH_MSG(FmGuiMessageSeverity::HIGH,
+					 "ID3D11Device::CreateRenderTargetView failed!");
 			return S_FALSE;
 		}
 		ReleaseCOM(pSwapChainBackBuffer);
@@ -667,22 +563,16 @@ bool
 FmGui::ShutdownHook(void)
 {
 	// Reverse order of initialization.
-	auto mhStatus = MH_DisableHook(MH_ALL_HOOKS);
+	MH_STATUS mhStatus = MH_DisableHook(MH_ALL_HOOKS);
 	if (mhStatus != MH_OK) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("MH_DisableHook failed!", Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "MH_DisableHook failed!\n");
-#endif
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "MH_DisableHook failed: "
+				 + MinHookStatusToStdString(mhStatus) + '!');
 		return false;
 	}
 	mhStatus = MH_Uninitialize();
 	if (mhStatus != MH_OK) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("MH_Uninitialize failed!", Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "MH_Uninitialize failed!\n");
-#endif
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "MH_Uninitialize failed: "
+				 + MinHookStatusToStdString(mhStatus) + '!');
 		return false;
 	}
 
@@ -695,6 +585,12 @@ FmGui::ShutdownHook(void)
 		ImGui_ImplWin32_Shutdown();
 		isImGuiImplWin32Initialized = false;
 	}
+
+#if defined FMGUI_ENABLE_IMPLOT
+	if (pImPlotContext != nullptr) {
+		ImPlot::DestroyContext(pImPlotContext);
+	}
+#endif
 	
 	if (pImGuiContext != nullptr) {
 		ImGui::DestroyContext(pImGuiContext);
@@ -706,20 +602,33 @@ FmGui::ShutdownHook(void)
 	ReleaseCOM(pRenderTargetView);
 	if (hWnd) {
 		// Set hWnd's WndProc back to it's original proc.
-		if (SetWindowLongPtrW(hWnd, GWLP_WNDPROC,
+		if (SetWindowLongPtr(hWnd, GWLP_WNDPROC,
 			reinterpret_cast<LONG_PTR>(pWndProcApp)) == 0) {
-#if defined FMGUI_CPPIMMO
-			LOG_WRITELN_T("SetWindowLongPtrW failed!",
-						  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-			std::fprintf(pFileStderr, "SetWindowLongPtrW failed!\n");
-#endif
+			PUSH_MSG(FmGuiMessageSeverity::HIGH, "SetWindowLongPtr failed!");
 			return false;
 		}
 	}
 	// Set the Present initialization check to false.
 	isInitialized = false;
 	return true;
+}
+
+const FmGuiMessage &
+FmGui::GetLastError(void)
+{
+	return messageStack.top();
+}
+
+std::vector<FmGuiMessage>
+FmGui::GetEveryMessage(void)
+{
+	std::vector<FmGuiMessage> errorMessages;
+	while (!messageStack.empty()) {
+		errorMessages.push_back(messageStack.top());
+		messageStack.pop();
+	}
+	std::reverse(std::begin(errorMessages), std::end(errorMessages));
+	return errorMessages; // Hope for return value optimization.
 }
 
 static void
@@ -740,12 +649,7 @@ FmGui::OnResize(IDXGISwapChain *pSwapChain, UINT newWidth, UINT newHeight)
 	DXGI_SWAP_CHAIN_DESC swapChainDesc;
 	ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
 	if (FAILED(pSwapChain->GetDesc(&swapChainDesc))) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("IDXGISwapChain::GetDesc failed!",
-					  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "IDXGISwapChain::GetDesc failed!\n");
-#endif
+		PUSH_MSG(FmGuiMessageSeverity::HIGH, "IDXGISwapChain::GetDesc failed!");
 		return;
 	}
 	
@@ -753,37 +657,25 @@ FmGui::OnResize(IDXGISwapChain *pSwapChain, UINT newWidth, UINT newHeight)
 		swapChainDesc.BufferCount,
 		newWidth, newHeight,
 		swapChainDesc.BufferDesc.Format, 0u))) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("IDXGISwapChain::ResizeBuffers failed!",
-					  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "IDXGISwapChain::ResizeBuffers failed!\n");
-#endif
+		PUSH_MSG(FmGuiMessageSeverity::HIGH,
+				 "IDXGISwapChain::ResizeBuffers failed!");
 		return;
 	}
 
 	ID3D11Texture2D *pSwapChainBackBuffer = nullptr;
 	if (FAILED(pSwapChain->GetBuffer(0u, __uuidof(ID3D11Texture2D),
 		reinterpret_cast<void **>(&pSwapChainBackBuffer)))) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("IDXGISwapChain::GetBuffer failed!",
-					  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr, "IDXGISwapChain::GetBuffer failed!\n");
-#endif
+		PUSH_MSG(FmGuiMessageSeverity::HIGH,
+				 "IDXGISwapChain::GetBuffer failed!");
 		ReleaseCOM(pSwapChainBackBuffer);
 		return;
 	}
 
-	if (FAILED(pDevice->CreateRenderTargetView(pSwapChainBackBuffer, nullptr,
-											   &pRenderTargetView))) {
-#if defined FMGUI_CPPIMMO
-		LOG_WRITELN_T("ID3D11Device::CreateRenderTargetView failed!",
-					  Utils::Logger::Type::ERROR);
-#elif !defined FMGUI_CPPIMMO && defined FMGUI_ENABLE_IO
-		std::fprintf(pFileStderr,
-					 "ID3D11Device::CreateRenderTargetView failed!\n");
-#endif
+	if (FAILED(pDevice->CreateRenderTargetView(
+		pSwapChainBackBuffer, nullptr,
+		&pRenderTargetView))) {
+		PUSH_MSG(FmGuiMessageSeverity::HIGH,
+				 "ID3D11Device::CreateRenderTargetView failed!");
 		ReleaseCOM(pSwapChainBackBuffer);
 		return;
 	}
@@ -827,19 +719,17 @@ FmGui::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	}
-	return CallWindowProcW(pWndProcApp, hWnd, uMsg, wParam, lParam);
+	return CallWindowProc(pWndProcApp, hWnd, uMsg, wParam, lParam);
 }
-
-#if defined FMGUI_CPPIMMO
-} // namespace Utils
-#endif
 
 /*
  * FmGuiConfig's members need be defined where imgui/imgui.h is included. 
  */
 FmGuiConfig::FmGuiConfig(void)
 	: imGuiStyle(FmGuiStyle::DARK),
-	  imGuiConfigFlags(static_cast<ImGuiConfigFlags>(ImGuiConfigFlags_NavNoCaptureKeyboard)),
+	  imGuiConfigFlags(
+		  static_cast<ImGuiConfigFlags>(ImGuiConfigFlags_NavNoCaptureKeyboard)
+	  ),
 	  imGuiIniFileName(),
 	  imGuiIniSavingRate(5.0f)
 {

@@ -233,11 +233,7 @@ std::string DebugLayerMessageDump(void);
 /*
  * Shutdown the FmGui and ImGui.
  */
-#if defined FMGUI_CPPIMMO
-[[nodiscard]] bool ShutdownHook(void);
-#else
 bool ShutdownHook(void);
-#endif
 
 } // namespace FmGui
 

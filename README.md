@@ -8,16 +8,24 @@ ease the development process of the user's EFM.
 
 # Table of Contents
 
-1. [Building](#building)
-  1. [Setting Up ImGui](#imgui)
-  2. [Setting Up ImPlot](#implot)
-  3. [Setting Up MinHook](#minhook)
-2. [Examples](#examples)
-3. [Configuration](#config)
-4. [Note](#note)
-5. [License](#license)
+- [1 Installing Binaries](#installing)
+- [2 Building](#building)
+  - [2.1 Setting Up ImGui](#imgui)
+  - [2.2 Setting Up ImPlot](#implot)
+  - [2.3 Setting Up MinHook](#minhook)
+- [3 Examples](#examples)
+- [4 Configuration](#config)
+- [5 Note](#note)
+- [6 License](#license)
 
-## 1. Building: <a name="building"></a>
+## 1. Installing Binaries: <a name="installing"></a>
+
+<p style="color:blue">
+  Note: This section is a work in progress. It is recommended that you build the
+  library yourself at this time.
+</p>
+
+## 2 Building: <a name="building"></a>
 To use the [Include/FmGui.hpp](Include/FmGui.hpp) and
 [Source/FmGui.cpp](Source/FmGui.cpp) source files, they must be included in the
 user's EFM Visual Studio or CMake project. In Visual Studio you can add existing
@@ -44,7 +52,7 @@ ImPlot v0.13
 MinHook v1.3.3
 [here](https://github.com/TsudaKageyu/minhook/releases/tag/v1.3.3).
 
-### 1.1 Setting Up ImGui <a name="imgui"></a>
+### 2.1 Setting Up ImGui <a name="imgui"></a>
 
 Including ImGui in your EFM project is really simple. FmGui assumes that you
 store the ImGui source files in their original folder and add them to your
@@ -91,7 +99,7 @@ imgui_impl_win32.cpp, imgui_tables.cpp, and imgui_widgets.cpp.
 You could also add the header files to your include path, but FmGui assumes the
 ImGui headers can be found in the current working directory.
 
-### 1.2 Setting Up ImPlot <a name="implot"></a>
+### 2.2 Setting Up ImPlot <a name="implot"></a>
 
 ImPlot is an extension for ImGui that add many useful new widgets such as plots,
 graphs, charts, and more.
@@ -133,7 +141,7 @@ disable ImPlot as shown in the source code example below:
 // #define FMGUI_ENABLE_IMPLOT
 ```
 
-### 1.3 Setting Up MinHook <a name="minhook"></a>
+### 2.3 Setting Up MinHook <a name="minhook"></a>
 
 As for the MinHook v1.3.3 release, assume the same project directory
 structure.
@@ -180,7 +188,7 @@ Linker -> Input -> Additional Dependencies*.
 
 Phew, I think that's everything.
 
-## 2. Examples: <a name="examples"></a>
+## 3. Examples: <a name="examples"></a>
 Checkout the Examples directory for code samples on this library's usage.
 
 See [Examples/Fm.cpp](Examples/Fm.cpp)
@@ -188,12 +196,12 @@ See [Examples/Fm.cpp](Examples/Fm.cpp)
 For a library reference simply view the FmGui.hpp header file and its
 commented functions.
 
-## 3. Configuration: <a name="config"></a>
+## 4. Configuration: <a name="config"></a>
 
 Currently there are no real configuration options available, but those will be
 added in the future.
 
-## 4. Note: <a name="note"></a>
+## 5. Note: <a name="note"></a>
 Please **do not** use these source files maliciously. This code is meant to
 aide the user in developing an EFM with the powerful ImGui widgets library.
 
@@ -203,7 +211,8 @@ v1.3.3, the DirectX SDK Version _____, and the ImGui library version 1.87.
 
 The minimum C++ ISO Standard requirement for these files is C++11.
 
-## 5. License: <a name="license"></a>
+## 6. License: <a name="license"></a>
 
 This project is licensed under the permissive BSD 2-Clause License. For more
 details view [LICENSE.txt](LICENSE.txt)
+

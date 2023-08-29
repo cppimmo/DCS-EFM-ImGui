@@ -25,7 +25,7 @@ The user will need to have the "Desktop development with C++" and "Game developm
 
 ![Add Workloads](Images/Workloads.png)
 
-The FmGui source files use the ImGui, ImPlot (optionally), and MinHook libraries.  The required libraries are supplied as submodules of this repository, but you may wish to retrieve them directly.  You may find ImGui v1.87 [here](https://github.com/ocornut/imgui/releases/tag/v1.87) ImPlot v0.13 [here](t/implot/releases/tag/v0.13), and you can find MinHook v1.3.3 [here](https://github.com/TsudaKageyu/minhook/releases/tag/v1.3.3).
+The FmGui source files use the ImGui, ImPlot (optionally), and MinHook libraries.  The required libraries are supplied as submodules of this repository, but you may also wish to retrieve them directly.  You may find ImGui v1.87 [here](https://github.com/ocornut/imgui/releases/tag/v1.87) ImPlot v0.13 [here](t/implot/releases/tag/v0.13), and you can find MinHook v1.3.3 [here](https://github.com/TsudaKageyu/minhook/releases/tag/v1.3.3).
 
 ### 1.1 Setting Up ImGui <a name="imgui"></a>
 

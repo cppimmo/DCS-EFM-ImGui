@@ -1,6 +1,6 @@
 # DCS EFM ImGui (FmGui)
 
-![In-game image.](Images/InDCS.png)
+![In-game image.](Images/InDCS.jpg)
 
 FmGui is a source only library that implements the Dear ImGui library, and optionally the ImPlot extension, for use with the DCS: World EFM API. Its purpose is to greatly ease the development process of the user's EFM.
 
@@ -17,13 +17,13 @@ FmGui is a source only library that implements the Dear ImGui library, and optio
 ## 1 Building: <a name="building"></a>
 To use the [Source/FmGui.hpp](Source/FmGui.hpp) and [Source/FmGui.cpp](Source/FmGui.cpp) source files, they must be included in the user's EFM Visual Studio or CMake project. In Visual Studio you can add existing file(s) as seen below.
 
-![Add Existing](Images/AddExisting.png)
+![Add Existing](Images/AddExisting.jpg)
 
 The user will need to have the "Desktop development with C++" and "Game development with C++" Visual Studio workloads installed to successful build these source files. The "Game development with C++" workload is needed, because it contains the DirectX SDK. The process for installing these workloads can be seen below.
 
-![Modify Workloads](Images/Modify.png)
+![Modify Workloads](Images/Modify.jpg)
 
-![Add Workloads](Images/Workloads.png)
+![Add Workloads](Images/Workloads.jpg)
 
 The FmGui source files use the ImGui, ImPlot (optionally), and MinHook libraries.  The required libraries are supplied as submodules of this repository, but you may also wish to retrieve them directly.  You may find ImGui v1.87 [here](https://github.com/ocornut/imgui/releases/tag/v1.87) ImPlot v0.13 [here](t/implot/releases/tag/v0.13), and you can find MinHook v1.3.3 [here](https://github.com/TsudaKageyu/minhook/releases/tag/v1.3.3).
 
@@ -71,7 +71,7 @@ ImPlot is an extension for ImGui that adds many useful new widgets such as plots
 
 **Note:** The ImPlot dependency is optional.  In order to use ImPlot you need to add the `FMGUI_ENABLE_IMPLOT` preprocessor definition to your build process as shown in the image below.
 
-![ImPlot Processor Definition](Images/Preprocessor.png)
+![ImPlot Processor Definition](Images/Preprocessor.jpg)
 
 An ImPlot directory setup might look like this:
 
@@ -86,7 +86,7 @@ An ImPlot directory setup might look like this:
         - implot_items.cpp
         - ...
     - ...
-  - MY_EFM_PROJECT
+  - MY_EFM_PROJECT/
     - .vcxproj in this directory.
     - ...
   - .sln in this directory.
@@ -122,7 +122,7 @@ In Visual Studio select your project in the Solution Explorer and then add the f
 
 Select *Configuration Properties -> Linker -> General -> Additional Libraries Directories* and add $(ProjectDir)\..\<REPLACE_THIS>\MinHook\lib\
 
-In the MinHook/lib/ directory, you will see several different static libraries.  Choose the static libraries with the appropriate architecture and platform toolset for your project.  Add these to your different configurations in *Configuration Properties -> Linker -> Input -> Additional Dependencies*.
+In the MinHook/lib/ directory of the FmGui release archive, you will see several different static libraries.  Choose the static libraries with the appropriate architecture and platform toolset for your project.  Add these to your different configurations in *Configuration Properties -> Linker -> Input -> Additional Dependencies*.
 
 ## 2. Examples: <a name="examples"></a>
 

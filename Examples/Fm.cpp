@@ -52,17 +52,28 @@ static void FmGuiInputRoutine(UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 
 // Some code...
-
+/*
+ * NOTE: This function may not be exported from your DLL if you are using the ED
+ * EFM API template that is bundled with the game's install. You will need to add
+ * an exported declaration to the extern "C" block of the ED_FM_TEMPLATE_API.h (or
+ * your project's equivalent):
+ * 
+ * // The ED_FM_TEMPLATE_API preproccessor definition may have a different name
+ * // It is equivalent to: __declspec(dllexport)
+ * ED_FM_TEMPLATE_API void ed_fm_set_plugin_data_install_path(const char *path);
+ * // For ed_fm_release as well:
+ * ED_FM_TEMPLATE_API void ed_fm_release(void);
+ */
 void ed_fm_set_plugin_data_install_path(const char *path)
 {
-	/**
+	/*
 	 * You may wish to use the preprocessor to only enable FmGui when your project
 	 * is in DEBUG configuration. This can be done with the #ifdef _DEBUG and
 	 * a closing #endif in most projects using MSVC. For a more standard abiding
 	 * solution you may use #ifndef NDEBUG and a closing #endif.
 	 */
 // #ifdef _DEBUG
-	/**
+	/*
 	 * Optional configuration. For more information and default values see the
 	 * FmGuiConfig struct in FmGui.hpp.
 	 */
@@ -85,12 +96,12 @@ void ed_fm_set_plugin_data_install_path(const char *path)
 		// Print the addresses of the D3D11 context:
 		std::printf("%s\n", FmGui::AddressDump().c_str());
 		// Set the pointers to your ImGui and ImGui Input routine functions:
-		FmGui::SetImGuiRoutinePtr(FmGuiRoutine);
-		FmGui::SetImGuiInputRoutinePtr(FmGuiInputRoutine);
+		FmGui::SetRoutinePtr(FmGuiRoutine);
+		FmGui::SetInputRoutinePtr(FmGuiInputRoutine);
 		// Set the widget visibility to ON:
 		FmGui::SetWidgetVisibility(true);
 	}
-	/**
+	/*
 	 * The closing #endif for use if you want FmGui to only be enabled for DEBUG
 	 * builds.
 	 */
@@ -110,7 +121,7 @@ void ed_fm_release(void)
 
 // Some code...
 
-/**
+/*
  * The following is some additional ideas for using FmGui in your flight model/systems code:
  * - If you use classes to abstract your code you can make an interface class
  *   that your flight model & systems classes can implement as seen below:

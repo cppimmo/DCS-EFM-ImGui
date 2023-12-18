@@ -2,3 +2,6 @@ Build/
 Distribute/
 /Distribute.ps1.log
 /README.html
+# Doxygen output:
+latex/
+html/

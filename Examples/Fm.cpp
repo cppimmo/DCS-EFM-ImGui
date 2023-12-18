@@ -36,7 +36,7 @@ static void FmGuiRoutine(void)
 // The user's ImGuiInputRoutine function (optional):
 static void FmGuiInputRoutine(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	/**
+	/*
 	 * Handle input. See the links below for Win32 input handling.
 	 * https://docs.microsoft.com/en-us/windows/win32/inputdev/keyboard-input
 	 * https://docs.microsoft.com/en-us/windows/win32/learnwin32/keyboard-input
@@ -55,8 +55,8 @@ static void FmGuiInputRoutine(UINT uMsg, WPARAM wParam, LPARAM lParam)
 /*
  * NOTE: This function may not be exported from your DLL if you are using the ED
  * EFM API template that is bundled with the game's install. You will need to add
- * an exported declaration to the extern "C" block of the ED_FM_TEMPLATE_API.h (or
- * your project's equivalent):
+ * an exported declaration to the extern "C" block of the ED_FM_TEMPLATE_API.h header
+ * (or your project's equivalent):
  * 
  * // The ED_FM_TEMPLATE_API preproccessor definition may have a different name
  * // It is equivalent to: __declspec(dllexport)

@@ -58,13 +58,14 @@ namespace FmGui
 	static HRESULT GetDevice(IDXGISwapChain *const pSwapChain, ID3D11Device **ppDevice);
 	static HRESULT GetDeviceContext(IDXGISwapChain *const pSwapChain, ID3D11Device **ppDevice, ID3D11DeviceContext **ppDeviceContext);
 	static void OnResize(IDXGISwapChain *pSwapChain, UINT newWidth, UINT newHeight);
-	static LRESULT WndProc(HWND s_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
+	static LRESULT WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+	
 	template <typename Type>
 	inline void ReleaseCOM(Type *pInterface)
 	{
 		if (pInterface != nullptr)
 		{
+			// Call release member function of COM object:
 			pInterface->Release();
 			pInterface = nullptr;
 		}
@@ -102,24 +103,24 @@ namespace FmGui
 	static bool s_bImplDX11Initialized = false;
 	static Config s_config;
 	static MessageCallback s_pMessageCallback = nullptr;
-	static std::stack<Message> s_messageStack;
+	static std::stack<Message> s_msgStack;
 	static constexpr std::stack<Message>::size_type kMSG_STACK_MAX_SIZE = 24;
 } // End namespace (FmGui)
 
 // Todo turn this logic into a inline static function.
 #define PUSH_MSG(SEVERITY, CONTENT) ;
 	//\
-	//if (s_messageStack.size() > kMSG_STACK_MAX_SIZE) \
+	//if (s_msgStack.size() > kMSG_STACK_MAX_SIZE) \
 	//{ \
-	//	s_messageStack.pop(); \
+	//	s_msgStack.pop(); \
 	//} \
 	//else \
 	//{ \
-	//	if (s_messageStack.top().content != CONTENT) \
+	//	if (s_msgStack.top().content != CONTENT) \
 	//	{ \
-	//		s_messageStack.emplace(SEVERITY, CONTENT, __FILE__, __func__, __LINE__); \
+	//		s_msgStack.emplace(SEVERITY, CONTENT, __FILE__, __func__, __LINE__); \
 	//		if (s_pMessageCallback != nullptr) \
-	//			s_pMessageCallback(s_messageStack.top()); \
+	//			s_pMessageCallback(s_msgStack.top()); \
 	//	} \
 	//} \
 
@@ -140,7 +141,8 @@ void FmGui::SetMessageCallback(MessageCallback pMessageCallback)
 
 std::string FmGui::AddressDump(void)
 {
-	std::ostringstream oss; oss.precision(2);
+	std::ostringstream oss;
+	oss.precision(2);
 	oss << std::hex
 		<< "ID3D11Device Pointer Location: "
 		<< reinterpret_cast<void *>(&s_pDevice) << '\n'
@@ -157,7 +159,7 @@ std::string FmGui::DebugLayerMessageDump(void)
 {
 	ID3D11InfoQueue *pInfoQueue = nullptr;
 	if (!s_pDevice || FAILED(s_pDevice->QueryInterface(__uuidof(ID3D11InfoQueue),
-												   reinterpret_cast<void **>(&pInfoQueue))))
+													   reinterpret_cast<void **>(&pInfoQueue))))
 	{
 		PUSH_MSG(MessageSeverity::kHIGH, "QueryInterface failed!");
 		return std::string();
@@ -182,25 +184,26 @@ std::string FmGui::DebugLayerMessageDump(void)
 			return std::string();
 		}
 		// Allocate memory.
-		D3D11_MESSAGE *message = (D3D11_MESSAGE *)std::malloc(msgSize);
-		if (!message)
+		D3D11_MESSAGE *pMessage = (D3D11_MESSAGE *)std::malloc(msgSize);
+		if (!pMessage)
 		{
 			PUSH_MSG(MessageSeverity::kHIGH, "std::malloc failed!");
 			return std::string();
 		}
 		// Get the message itself.
-		if (FAILED(pInfoQueue->GetMessage(index, message, &msgSize)))
+		if (FAILED(pInfoQueue->GetMessage(index, pMessage, &msgSize)))
 		{
 			PUSH_MSG(MessageSeverity::kHIGH, "ID3D11InfoQueue::GetMessaged failed!");
+			std::free(pMessage);
 			return std::string();
 		}
 		
-		oss << "D3D11 MESSAGE|ID:" << static_cast<int>(message->ID)
-			<< "|CATEGORY:" << static_cast<int>(message->Category)
-			<< "|SEVERITY:" << static_cast<int>(message->Severity)
-			<< "|DESC_LEN:" << message->DescriptionByteLength
-			<< "|DESC:" << message->pDescription;
-		std::free(message);
+		oss << "D3D11 MESSAGE|ID:" << static_cast<int>(pMessage->ID)
+			<< "|CATEGORY:"        << static_cast<int>(pMessage->Category)
+			<< "|SEVERITY:"        << static_cast<int>(pMessage->Severity)
+			<< "|DESC_LEN:"        << pMessage->DescriptionByteLength
+			<< "|DESC:"            << pMessage->pDescription;
+		std::free(pMessage);
 	}
 	pInfoQueue->ClearStoredMessages();
 	ReleaseCOM(pInfoQueue);
@@ -256,13 +259,16 @@ LPVOID FmGui::LookupSwapChainVTable(void)
 		return nullptr;
 	}
 #endif
-
+	/**
+	 * Setup temporary D3D11 device and swap chain in order to retrieve the address
+	 * of the Present virtual member function in the VTable.
+	 */
 	D3D_FEATURE_LEVEL featureLevel;
-	const D3D_FEATURE_LEVEL featureLevels[] = {
+	const D3D_FEATURE_LEVEL kFeatureLevels[] = {
 		D3D_FEATURE_LEVEL_10_1,
 		D3D_FEATURE_LEVEL_11_0
 	};
-	const UINT numFeatureLevels = std::size(featureLevels);
+	constexpr UINT kNUM_FEAT_LEVELS = std::size(kFeatureLevels);
 
 	UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 #if defined _DEBUG
@@ -305,14 +311,13 @@ LPVOID FmGui::LookupSwapChainVTable(void)
 	}
 	else
 	{
-		constexpr int kTITLE_BUFF_SIZE = 256;
+		constexpr std::size_t kTITLE_BUFF_SIZE = 256;
 		CHAR title[kTITLE_BUFF_SIZE];
 		GetWindowTextA(hWndFg, title, kTITLE_BUFF_SIZE);
 
-		char buffer[124];
-		const std::size_t kBuffSize = std::size(buffer);
-		std::snprintf(buffer, kBuffSize, "FmGui has window \"%s\".", title);
-		PUSH_MSG(MessageSeverity::kNOTIFICATION, std::string(buffer, kBuffSize));
+		char buffer[kTITLE_BUFF_SIZE];
+		std::snprintf(buffer, kTITLE_BUFF_SIZE, "FmGui has window \"%s\".", title);
+		PUSH_MSG(MessageSeverity::kNOTIFICATION, std::string(buffer, kTITLE_BUFF_SIZE));
 	}
 
 	swapChainDesc.OutputWindow = hWndFg;
@@ -324,15 +329,14 @@ LPVOID FmGui::LookupSwapChainVTable(void)
 		D3D_DRIVER_TYPE_HARDWARE,
 		nullptr,
 		creationFlags,
-		featureLevels,
-		numFeatureLevels,
+		kFeatureLevels,
+		kNUM_FEAT_LEVELS,
 		D3D11_SDK_VERSION,
 		&swapChainDesc,
 		&pLocalSwapChain,
 		&pLocalDevice,
 		&featureLevel,
-		&pLocalDeviceContext
-	)))
+		&pLocalDeviceContext)))
 	{
 		PUSH_MSG(MessageSeverity::kHIGH, "D3D11CreateDeviceAndSwapChain failed!");
 		// DestroyWindow(hLocalWnd);
@@ -362,15 +366,18 @@ bool FmGui::SetWidgetVisibility(bool bEnabled)
 
 std::string FmGui::MinHookStatusToStdString(MH_STATUS mhStatus)
 {
-	char buffer[124];
-	const std::size_t kBuffSize = std::size(buffer);
-	const int written = std::snprintf(buffer, kBuffSize, "%s", MH_StatusToString(mhStatus));
-	return (written > 0) ? std::string(buffer, written) : "";
+	constexpr std::size_t kBUFF_SIZE = 124;
+	char buffer[kBUFF_SIZE];
+	
+	const int kWritten = std::snprintf(buffer, kBUFF_SIZE, "%s", MH_StatusToString(mhStatus));
+	return (kWritten > 0) ? std::string(buffer, kWritten) : "";
 }
 
 bool FmGui::StartupHook(const Config &config)
 {
+	// Copy the given config:
 	s_config = config;
+
 	PUSH_MSG(MessageSeverity::kNOTIFICATION, "Redirecting Direct3D routines...");
 	// HMODULE hDxgi = GetModuleHandleA(kDXGI_MODULE_NAME);
 	// DWORD_PTR dwpDxgi = reinterpret_cast<DWORD_PTR>(hDxgi);
@@ -383,7 +390,8 @@ bool FmGui::StartupHook(const Config &config)
 	// 
 	// LPVOID pSwapChainPresentOriginal = reinterpret_cast<LPVOID>(
 	// 	(IDXGISwapChainPresentPtr)((DWORD_PTR)hDxgi + 0x5070));
-
+	
+	// Initialize MinHook:
 	MH_STATUS mhStatus = MH_Initialize();
 	if (mhStatus != MH_OK)
 	{
@@ -391,6 +399,7 @@ bool FmGui::StartupHook(const Config &config)
 		return false;
 	}
 
+	// Create swap chain present trampoline using MinHook:
 	mhStatus = MH_CreateHook(pSwapChainPresentOriginal, &SwapChainPresentImpl,
 							 reinterpret_cast<LPVOID *>(&s_pSwapChainPresentTrampoline));
 	if (mhStatus != MH_OK)
@@ -399,6 +408,7 @@ bool FmGui::StartupHook(const Config &config)
 		return false;
 	}
 	
+	// Enable the created hook:
 	mhStatus = MH_EnableHook(pSwapChainPresentOriginal);
 	if (mhStatus != MH_OK)
 	{
@@ -414,6 +424,7 @@ HRESULT FMGUI_FASTCALL FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, U
 {
 	if (!s_bInitialized)
 	{
+		// Setup ImGui & ImPlot contexts:
 		bool bResult;
 		HRESULT hResult;
 
@@ -439,7 +450,7 @@ HRESULT FMGUI_FASTCALL FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, U
 			PUSH_MSG(MessageSeverity::kHIGH, "ImGui::CreateContext failed!");
 			return s_pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
 		}
-#if defined FMGUI_ENABLE_IMPLOT
+#ifdef FMGUI_ENABLE_IMPLOT
 		s_pImPlotContext = ImPlot::CreateContext();
 		if (!s_pImPlotContext)
 		{
@@ -448,13 +459,13 @@ HRESULT FMGUI_FASTCALL FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, U
 		}
 #endif
 		ImGui::SetCurrentContext(s_pImGuiContext);
-#if defined FMGUI_ENABLE_IMPLOT
+#ifdef FMGUI_ENABLE_IMPLOT
 		ImPlot::SetCurrentContext(s_pImPlotContext);
 #endif
 		ImGuiIO &imGuiIO = ImGui::GetIO();
-		// Configuration of the current ImGui context.
+		// Configure the current ImGui content:
 		imGuiIO.ConfigFlags |= s_config.configFlags;
-#if defined FMGUI_ENABLE_IMPLOT
+#ifdef FMGUI_ENABLE_IMPLOT
 		/**
 		 * For ImPlot enable meshes with over 64,000 vertices while using the
 		 * default backend 16 bit value for indexed drawing.
@@ -517,7 +528,9 @@ HRESULT FMGUI_FASTCALL FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, U
 			PUSH_MSG(MessageSeverity::kHIGH, "ImGui_ImplDX11_Init failed!");
 			return S_FALSE;
 		}
-		imGuiIO.ImeWindowHandle = s_hWnd;
+		imGuiIO.ImeWindowHandle = s_hWnd;		
+		//imGuiIO.SetPlatformImeDataFn(ImGui::GetMainViewport(), );
+		//ImGui::GetMainViewport()->PlatformHandleRaw = s_hWnd;
 
 		// Retrieve the back buffer from the IDXGISwapChain.
 		ID3D11Texture2D *pSwapChainBackBuffer = nullptr;
@@ -535,11 +548,16 @@ HRESULT FMGUI_FASTCALL FmGui::SwapChainPresentImpl(IDXGISwapChain *pSwapChain, U
 			return S_FALSE;
 		}
 		ReleaseCOM(pSwapChainBackBuffer);
-		s_bInitialized = true;
+
+		s_bInitialized = true; // Set to initialized
 	}
 	else
 	{
+		// Prepare next frame for ImGui: 
 		ImGui::SetCurrentContext(s_pImGuiContext);
+#ifdef FMGUI_ENABLE_IMPLOT
+		ImPlot::SetCurrentContext(s_pImPlotContext);
+#endif
 		// Check for NULL context.
 		if (!ImGui::GetCurrentContext())
 			return s_pSwapChainPresentTrampoline(pSwapChain, syncInterval, flags);
@@ -634,16 +652,16 @@ bool FmGui::ShutdownHook(void)
 
 const FmGui::Message &FmGui::GetLastError(void)
 {
-	return s_messageStack.top();
+	return s_msgStack.top();
 }
 
 FmGui::MessageVector FmGui::GetEveryMessage(void)
 {
 	MessageVector errorMsgs;
-	while (!s_messageStack.empty())
+	while (!s_msgStack.empty())
 	{
-		errorMsgs.push_back(s_messageStack.top());
-		s_messageStack.pop();
+		errorMsgs.push_back(s_msgStack.top());
+		s_msgStack.pop();
 	}
 	std::reverse(std::begin(errorMsgs), std::end(errorMsgs));
 	return errorMsgs;
@@ -701,7 +719,7 @@ void FmGui::OnResize(IDXGISwapChain *pSwapChain, UINT newWidth, UINT newHeight)
 	s_pDeviceContext->RSSetViewports(1, &viewport);
 }
 
-LRESULT FmGui::WndProc(HWND s_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT FmGui::WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	// Check if there is a valid context:
 	if (ImGui::GetCurrentContext())
@@ -709,8 +727,8 @@ LRESULT FmGui::WndProc(HWND s_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		ImGuiIO &imGuiIO = ImGui::GetIO();
 		POINT cursorPos; GetCursorPos(&cursorPos);
 		
-		if (FmGui::s_hWnd)
-			ScreenToClient(FmGui::s_hWnd, &cursorPos);
+		if (s_hWnd)
+			ScreenToClient(s_hWnd, &cursorPos);
 	
 		imGuiIO.MousePos.x = cursorPos.x;
 		imGuiIO.MousePos.y = cursorPos.y;
@@ -719,7 +737,7 @@ LRESULT FmGui::WndProc(HWND s_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	if (s_bWidgetsEnabled)
 	{
 		// Check for a non-NULL context and handle ImGui events
-		if (ImGui::GetCurrentContext() && ImGui_ImplWin32_WndProcHandler(s_hWnd, uMsg, wParam, lParam))
+		if (ImGui::GetCurrentContext() && ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
 		{
 			return TRUE;
 		}
@@ -741,5 +759,5 @@ LRESULT FmGui::WndProc(HWND s_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	default:
 		break;
 	}
-	return CallWindowProc(s_pWndProcApp, s_hWnd, uMsg, wParam, lParam);
+	return CallWindowProc(s_pWndProcApp, hWnd, uMsg, wParam, lParam);
 }

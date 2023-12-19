@@ -24,6 +24,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="FmGuiIcon.png"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">DCS EFM ImGui (FmGui)
    &#160;<span id="projectnumber">v1.2</span>
@@ -104,14 +105,13 @@ Public Attributes</h2></td></tr>
 <tr class="separator:a1a90a30ded8b13345ae6ed74040ae65c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac846748cb2b37b2a5c9b404464787401"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structFmGui_1_1Config.html#ac846748cb2b37b2a5c9b404464787401">iniFileName</a> = &quot;imgui.ini&quot;</td></tr>
 <tr class="separator:ac846748cb2b37b2a5c9b404464787401"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af8ac35175d144b1767e879825c261822"><td class="memItemLeft" align="right" valign="top"><a id="af8ac35175d144b1767e879825c261822"></a>
-float&#160;</td><td class="memItemRight" valign="bottom"><b>iniSavingRate</b> = 5.0f</td></tr>
+<tr class="memitem:af8ac35175d144b1767e879825c261822"><td class="memItemLeft" align="right" valign="top">float&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structFmGui_1_1Config.html#af8ac35175d144b1767e879825c261822">iniSavingRate</a> = 5.0f</td></tr>
 <tr class="separator:af8ac35175d144b1767e879825c261822"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p><a class="el" href="namespaceFmGui.html" title="FmGui types &amp; functions.">FmGui</a> configuration data. </p>
 
-<p class="definition">Definition at line <a class="el" href="FmGui_8hpp_source.html#l00076">76</a> of file <a class="el" href="FmGui_8hpp_source.html">FmGui.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="FmGui_8hpp_source.html#l00075">75</a> of file <a class="el" href="FmGui_8hpp_source.html">FmGui.hpp</a>.</p>
 </div><h2 class="groupheader">Member Data Documentation</h2>
 <a id="a1a90a30ded8b13345ae6ed74040ae65c"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a1a90a30ded8b13345ae6ed74040ae65c">&#9670;&nbsp;</a></span>configFlags</h2>
@@ -124,9 +124,9 @@ float&#160;</td><td class="memItemRight" valign="bottom"><b>iniSavingRate</b> = 
         </tr>
       </table>
 </div><div class="memdoc">
-<p>The configuration flags passed to the ImGui context. See ImGui documentation for ImGuiConfigFlags. Default value: ImGuiConfigFlags_NavNoCaptureKeyboard </p>
+<p>The configuration flags passed to the ImGui context. See ImGui documentation for <code>ImGuiConfigFlags</code>. Default value: <code>ImGuiConfigFlags_NavNoCaptureKeyboard</code> </p>
 
-<p class="definition">Definition at line <a class="el" href="FmGui_8hpp_source.html#l00089">89</a> of file <a class="el" href="FmGui_8hpp_source.html">FmGui.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="FmGui_8hpp_source.html#l00088">88</a> of file <a class="el" href="FmGui_8hpp_source.html">FmGui.hpp</a>.</p>
 
 </div>
 </div>
@@ -141,9 +141,26 @@ float&#160;</td><td class="memItemRight" valign="bottom"><b>iniSavingRate</b> = 
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Full path and filename of the auto generated ImGui .ini configuration file. This can be a full or relative path. See Examples/Fm.cpp for more info. Setting this string to empty results in no configuration file. Default value: "imgui.ini" </p>
+<p>Full path and filename of the auto generated ImGui .ini configuration file. This can be a full or relative path. See <a class="el" href="Fm_8cpp_source.html">Examples/Fm.cpp</a> for more info. Setting this string to empty results in no configuration file. Default value: <code>"imgui.ini"</code> </p>
 
-<p class="definition">Definition at line <a class="el" href="FmGui_8hpp_source.html#l00096">96</a> of file <a class="el" href="FmGui_8hpp_source.html">FmGui.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="FmGui_8hpp_source.html#l00095">95</a> of file <a class="el" href="FmGui_8hpp_source.html">FmGui.hpp</a>.</p>
+
+</div>
+</div>
+<a id="af8ac35175d144b1767e879825c261822"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af8ac35175d144b1767e879825c261822">&#9670;&nbsp;</a></span>iniSavingRate</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">float FmGui::Config::iniSavingRate = 5.0f</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>The rate in seconds at which the .ini configuration file is updated. Only applicable when the ImGui .ini is enabled. Default value: <code>5.0f</code> </p>
+
+<p class="definition">Definition at line <a class="el" href="FmGui_8hpp_source.html#l00101">101</a> of file <a class="el" href="FmGui_8hpp_source.html">FmGui.hpp</a>.</p>
 
 </div>
 </div>
@@ -158,9 +175,9 @@ float&#160;</td><td class="memItemRight" valign="bottom"><b>iniSavingRate</b> = 
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Enumeration that can be set to the three default styles provided by ImGui in the form Style::kCLASSIC, Style::kDARK, &amp; Style::kLIGHT. Default value: Style::kDARK </p>
+<p>Enumeration that can be set to the three default styles provided by ImGui in the form <code>Style::kCLASSIC</code>, <code>Style::kDARK</code>, &amp; <code>Style::kLIGHT</code>. Default value: <code>Style::kDARK</code> </p>
 
-<p class="definition">Definition at line <a class="el" href="FmGui_8hpp_source.html#l00083">83</a> of file <a class="el" href="FmGui_8hpp_source.html">FmGui.hpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="FmGui_8hpp_source.html#l00082">82</a> of file <a class="el" href="FmGui_8hpp_source.html">FmGui.hpp</a>.</p>
 
 </div>
 </div>

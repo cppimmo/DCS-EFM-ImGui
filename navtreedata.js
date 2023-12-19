@@ -25,16 +25,14 @@
 var NAVTREE =
 [
   [ "DCS EFM ImGui (FmGui)", "index.html", [
-    [ "Table of Contents", "index.html#autotoc_md1", [
-      [ "1 Building: <a name=\"building\"></a>", "index.html#autotoc_md2", [
-        [ "1.1 Setting Up ImGui <a name=\"imgui\"></a>", "index.html#autotoc_md3", null ],
-        [ "1.2 Setting Up ImPlot <a name=\"implot\"></a>", "index.html#autotoc_md4", null ],
-        [ "1.3 Setting Up MinHook <a name=\"minhook\"></a>", "index.html#autotoc_md5", null ]
-      ] ],
-      [ "2. Examples: <a name=\"examples\"></a>", "index.html#autotoc_md6", null ],
-      [ "3. Note: <a name=\"note\"></a>", "index.html#autotoc_md7", null ],
-      [ "4. License: <a name=\"license\"></a>", "index.html#autotoc_md8", null ]
+    [ "Building", "index.html#autotoc_md1", [
+      [ "Setting Up ImGui", "index.html#autotoc_md2", null ],
+      [ "Setting Up ImPlot", "index.html#autotoc_md3", null ],
+      [ "Setting Up MinHook", "index.html#autotoc_md4", null ]
     ] ],
+    [ "Examples", "index.html#autotoc_md5", null ],
+    [ "Note", "index.html#autotoc_md6", null ],
+    [ "License", "index.html#autotoc_md7", null ],
     [ "Namespaces", "namespaces.html", [
       [ "Namespace List", "namespaces.html", "namespaces_dup" ],
       [ "Namespace Members", "namespacemembers.html", [

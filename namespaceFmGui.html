@@ -24,6 +24,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
+  <td id="projectlogo"><img alt="Logo" src="FmGuiIcon.png"/></td>
   <td id="projectalign" style="padding-left: 0.5em;">
    <div id="projectname">DCS EFM ImGui (FmGui)
    &#160;<span id="projectnumber">v1.2</span>
@@ -289,7 +290,19 @@ template&lt;typename Type &gt; </td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Set pointer to optional function that handles Win32 WndProc input. See InputRoutinePtr for a specification. Example: void FmGuiInputRoutine(UINT uMsg, WPARAM wParam, LPARAM lParam) { // Toggle widgets on Alt + W keypress. static bool bWidgetsEnabled = true; if (uMsg == WM_KEYDOWN) { if (wParam == 'W' &amp;&amp; (GetAsyncKeyState(VK_MENU) &amp; 0x8000)) { bWidgetsEnabled = !bWidgetsEnabled; FmGui::ChangeWidgetVisibility(bWidgetsEnabled); } } } Elsewhere perform a call to SetInputRoutinePtr(FmGuiInputRoutine);</p>
+<p>Set pointer to optional function that handles Win32 WndProc input. See <code>InputRoutinePtr</code> for a specification.</p>
+<p>Example: </p><pre class="fragment">void FmGuiInputRoutine(UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    // Toggle widgets on Alt + W keypress.
+    static bool bWidgetsEnabled = true;
+    if (uMsg == WM_KEYDOWN) {
+        if (wParam == 'W' &amp;&amp; (GetAsyncKeyState(VK_MENU) &amp; 0x8000)) {
+            bWidgetsEnabled = !bWidgetsEnabled;
+            FmGui::ChangeWidgetVisibility(bWidgetsEnabled);
+        }
+    }
+}
+</pre><p> Elsewhere perform a call to <code>SetInputRoutinePtr(FmGuiInputRoutine);</code>.</p>
 <p>Supplementary reading: <a href="https://docs.microsoft.com/en-us/windows/win32/inputdev/using-keyboard-input">https://docs.microsoft.com/en-us/windows/win32/inputdev/using-keyboard-input</a> <a href="https://docs.microsoft.com/en-us/windows/win32/inputdev/keyboard-input">https://docs.microsoft.com/en-us/windows/win32/inputdev/keyboard-input</a> <a href="https://docs.microsoft.com/en-us/windows/win32/learnwin32/keyboard-input">https://docs.microsoft.com/en-us/windows/win32/learnwin32/keyboard-input</a> </p>
 
 <p class="definition">Definition at line <a class="el" href="FmGui_8cpp_source.html#l00132">132</a> of file <a class="el" href="FmGui_8cpp_source.html">FmGui.cpp</a>.</p>
@@ -338,7 +351,12 @@ template&lt;typename Type &gt; </td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Set pointer to function that uses the ImGui immediate mode widgets. See RoutinePtr for a specification. Example: void FmGuiRoutine(void) { ImGui::ShowDemoWindow(); } Elsewhere perform a call to SetRoutinePtr(FmGuiRoutine); </p>
+<p>Set pointer to function that uses the ImGui immediate mode widgets. See RoutinePtr for a specification.</p>
+<p>Example: </p><pre class="fragment">void FmGuiRoutine(void)
+{ 
+    ImGui::ShowDemoWindow();
+}
+</pre><p> Elsewhere perform a call to <code>SetRoutinePtr(FmGuiRoutine);</code>. </p>
 
 <p class="definition">Definition at line <a class="el" href="FmGui_8cpp_source.html#l00127">127</a> of file <a class="el" href="FmGui_8cpp_source.html">FmGui.cpp</a>.</p>
 
@@ -362,13 +380,13 @@ template&lt;typename Type &gt; </td></tr>
 <p>Set all widget visibility and return previous value.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">bEnabled</td><td>- . </td></tr>
+    <tr><td class="paramname">bEnabled</td><td>- Visible when true. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="retval"><dt>Return values</dt><dd>
   <table class="retval">
-    <tr><td class="paramname">-</td><td>. </td></tr>
+    <tr><td class="paramname">-</td><td>Previous visibility state. </td></tr>
   </table>
   </dd>
 </dl>
@@ -392,7 +410,7 @@ template&lt;typename Type &gt; </td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Shutdown the <a class="el" href="namespaceFmGui.html" title="FmGui types &amp; functions.">FmGui</a> and ImGui. </p><dl class="retval"><dt>Return values</dt><dd>
+<p>Shutdown <a class="el" href="namespaceFmGui.html" title="FmGui types &amp; functions.">FmGui</a> and ImGui. </p><dl class="retval"><dt>Return values</dt><dd>
   <table class="retval">
     <tr><td class="paramname">-</td><td>True on success; false on failure. </td></tr>
   </table>
@@ -419,8 +437,13 @@ template&lt;typename Type &gt; </td></tr>
       </table>
 </div><div class="memdoc">
 <p>Start <a class="el" href="namespaceFmGui.html" title="FmGui types &amp; functions.">FmGui</a> and ImGui.</p>
-<p>You can supply an optional configuration using an <a class="el" href="structFmGui_1_1Config.html" title="FmGui configuration data.">Config</a> object. Example: <a class="el" href="structFmGui_1_1Config.html" title="FmGui configuration data.">Config</a> config; config.style = Style::kDARK; if (!FmGui::StartupHook(config)) { // FAILED! }</p>
-<dl class="params"><dt>Parameters</dt><dd>
+<p>You can supply an optional configuration using an <a class="el" href="structFmGui_1_1Config.html" title="FmGui configuration data.">Config</a> object.</p>
+<p>Example: </p><pre class="fragment">Config config;
+config.style = Style::kDARK;
+if (!FmGui::StartupHook(config)) {
+    // FAILED!
+}
+</pre> <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">config</td><td>- The <a class="el" href="structFmGui_1_1Config.html" title="FmGui configuration data.">FmGui::Config</a> structure; default config if argument is not passed. </td></tr>
   </table>

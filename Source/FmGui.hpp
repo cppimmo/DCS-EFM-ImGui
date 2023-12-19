@@ -37,9 +37,8 @@
 #include <type_traits>
 #include <string>
 #include <vector>
-
 /**
- * Adjust ImGui & ImPlot header names as needed.
+ * Adjust ImGui & ImPlot header names & paths as needed.
  */
 #include <imgui.h>
 /**
@@ -77,27 +76,27 @@ namespace FmGui
 	{
 		/**
 		 * Enumeration that can be set to the three default styles provided by ImGui
-		 * in the form Style::kCLASSIC, Style::kDARK, & Style::kLIGHT.
-		 * Default value: Style::kDARK
+		 * in the form `Style::kCLASSIC`, `Style::kDARK`, & `Style::kLIGHT`.
+		 * Default value: `Style::kDARK`
 		 */
 		Style style = Style::kDARK;
 		/**
 		 * The configuration flags passed to the ImGui context. See ImGui
-		 * documentation for ImGuiConfigFlags.
-		 * Default value: ImGuiConfigFlags_NavNoCaptureKeyboard
+		 * documentation for `ImGuiConfigFlags`.
+		 * Default value: `ImGuiConfigFlags_NavNoCaptureKeyboard`
 		 */
 		ImGuiConfigFlags configFlags = ImGuiConfigFlags_NavNoCaptureKeyboard;
 		/**
 		 * Full path and filename of the auto generated ImGui .ini configuration file.
 		 * This can be a full or relative path. See Examples/Fm.cpp for more info.
 		 * Setting this string to empty results in no configuration file.
-		 * Default value: "imgui.ini"
+		 * Default value: `"imgui.ini"`
 		 */
 		std::string iniFileName = "imgui.ini";
-		/*
+		/**
 		 * The rate in seconds at which the .ini configuration file is updated.
 		 * Only applicable when the ImGui .ini is enabled.
-		 * Default value: 5.0f
+		 * Default value: `5.0f`
 		 */
 		float iniSavingRate = 5.0f;
 	};
@@ -129,30 +128,36 @@ namespace FmGui
 	/**
 	 * Set pointer to function that uses the ImGui immediate mode widgets.
 	 * See RoutinePtr for a specification.
+	 *
 	 * Example:
-	 * void FmGuiRoutine(void)
-	 * {
-	 * 	   ImGui::ShowDemoWindow();
-	 * }
-	 * Elsewhere perform a call to SetRoutinePtr(FmGuiRoutine);
+	 *
+	 *     void FmGuiRoutine(void)
+	 *     { 
+	 *         ImGui::ShowDemoWindow();
+	 *     }
+	 *
+	 * Elsewhere perform a call to `SetRoutinePtr(FmGuiRoutine);`.
 	 */
 	void SetRoutinePtr(RoutinePtr pRoutine);
 	/**
 	 * Set pointer to optional function that handles Win32 WndProc input.
-	 * See InputRoutinePtr for a specification.
+	 * See `InputRoutinePtr` for a specification.
+	 *
 	 * Example:
-	 * void FmGuiInputRoutine(UINT uMsg, WPARAM wParam, LPARAM lParam)
-	 * {
-	 * 	   // Toggle widgets on Alt + W keypress.
-	 * 	   static bool bWidgetsEnabled = true;
-	 * 	   if (uMsg == WM_KEYDOWN) {
-	 * 	   	   if (wParam == 'W' && (GetAsyncKeyState(VK_MENU) & 0x8000)) {
-	 * 	   	   	   bWidgetsEnabled = !bWidgetsEnabled;
-	 * 	   	   	   FmGui::ChangeWidgetVisibility(bWidgetsEnabled);
-	 * 	   	   }
-	 * 	   }
-	 * }
-	 * Elsewhere perform a call to SetInputRoutinePtr(FmGuiInputRoutine);
+	 *
+	 *     void FmGuiInputRoutine(UINT uMsg, WPARAM wParam, LPARAM lParam)
+	 *     {
+	 *         // Toggle widgets on Alt + W keypress.
+	 *         static bool bWidgetsEnabled = true;
+	 *         if (uMsg == WM_KEYDOWN) {
+	 *             if (wParam == 'W' && (GetAsyncKeyState(VK_MENU) & 0x8000)) {
+	 *                 bWidgetsEnabled = !bWidgetsEnabled;
+	 *                 FmGui::ChangeWidgetVisibility(bWidgetsEnabled);
+	 *             }
+	 *         }
+	 *     }
+	 *
+	 * Elsewhere perform a call to `SetInputRoutinePtr(FmGuiInputRoutine);`.
 	 * 
 	 * Supplementary reading:
 	 * https://docs.microsoft.com/en-us/windows/win32/inputdev/using-keyboard-input
@@ -163,21 +168,23 @@ namespace FmGui
 	/**
 	 * Set all widget visibility and return previous value.
 	 * 
-	 * @param  bEnabled - .
-	 * @retval - .
+	 * @param  bEnabled - Visible when true.
+	 * @retval - Previous visibility state.
 	 */
 	bool SetWidgetVisibility(bool bEnabled);
 	/**
      * Start FmGui and ImGui.
 	 * 
 	 * You can supply an optional configuration using an Config object.
+	 *
 	 * Example:
-	 * Config config;
-	 * config.style = Style::kDARK;
-	 * if (!FmGui::StartupHook(config)) {
-	 *     // FAILED!
-	 * }
-	 * 
+	 *
+	 *     Config config;
+	 *     config.style = Style::kDARK;
+	 *     if (!FmGui::StartupHook(config)) {
+	 *         // FAILED!
+	 *     }
+	 *
      * @param  config - The FmGui::Config structure; default config if argument is not passed.
      * @retval        - True on success; false on failure.
 	 */
@@ -212,10 +219,10 @@ namespace FmGui
 	 */
 	std::string DebugLayerMessageDump(void);
 	/**
-	 * Shutdown the FmGui and ImGui.
+	 * Shutdown FmGui and ImGui.
 	 * @retval - True on success; false on failure.
 	 */
 	bool ShutdownHook(void);
 } // End namespace (FmGui)
 
-#endif /* !FMGUI_FMGUI_HPP_ */
+#endif /* !FMGUI_FMGUI_HPP */

@@ -2,7 +2,7 @@
 
 ![ImGui demo working in-game with an EFM aircraft plugin.](Images/InDCS.jpg)
 
-FmGui is a source only library that implements the Dear ImGui library, and optionally the ImPlot extension, for use with the DCS: World EFM API. Its purpose is to greatly ease the development process of the user's EFM.  You can view the Doxygen documentation for the project at:  [https://cppimmo.github.io/DCS-EFM-ImGui/](https://cppimmo.github.io/DCS-EFM-ImGui/).
+FmGui is a source only library that implements the Dear ImGui library, and optionally the ImPlot extension, for use with the DCS: World EFM API. Its purpose is to greatly ease the development process of the user's EFM.
 
 **Project Links**
 

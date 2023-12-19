@@ -1,0 +1,9 @@
+[submodule "Lib/MinHook"]
+	path = Lib/MinHook
+	url = https://github.com/TsudaKageyu/minhook.git
+[submodule "Lib/imgui"]
+	path = Lib/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "Lib/implot"]
+	path = Lib/implot
+	url = https://github.com/epezent/implot.git
